@@ -19,18 +19,18 @@ export async function cadastrarCategoria(nome: string) {
   return { categoria };
 }
 
-export async function listarCategoria(pagina = 1, limite= 10) {
+export async function listarCategoria(pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
 
   const categoria = await prisma.categoria.findMany({
     skip,
     take: limite,
-    orderBy:{nome:"asc"}
+    orderBy: { nome: "asc" },
   });
 
-  const total = await prisma.categoria.count()
+  const total = await prisma.categoria.count();
 
-  const totalPaginas = Math.ceil(total/limite)
+  const totalPaginas = Math.ceil(total / limite);
 
   return { categoria, total, pagina, limite, totalPaginas };
 }

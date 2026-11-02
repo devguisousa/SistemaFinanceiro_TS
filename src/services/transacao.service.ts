@@ -1,7 +1,6 @@
-import { number } from "zod";
 import { prisma } from "../prisma.js";
 
-type dadosTransacao = {
+type DadosTransacao = {
   descricao: string;
   valor: string;
   tipo: "RECEITA" | "DESPESA";
@@ -10,14 +9,14 @@ type dadosTransacao = {
 };
 
 type FiltrosTransacao = {
-  tipo?: "RECEITA" | "DESPESA";
-  contaId?: number;
-  categoriaId?: number;
+  tipo?: "RECEITA" | "DESPESA" | undefined;
+  contaId?: number | undefined;
+  categoriaId?: number | undefined;
   pagina: number;
   limite: number;
 };
 
-export async function cadastrarTransacao(dados: dadosTransacao) {
+export async function cadastrarTransacao(dados: DadosTransacao) {
   const conta = await prisma.conta.findUnique({
     where: { id: dados.contaId },
   });
@@ -49,28 +48,32 @@ export async function cadastrarTransacao(dados: dadosTransacao) {
   return { transacao };
 }
 
-export async function listarTransacoes(tipo?: "RECEITA" | "DESPESA", contaId? : number, pagina = 1, limite = 10) {
+export async function listarTransacoes(filtros: FiltrosTransacao) {
+  const { tipo, contaId, categoriaId, pagina, limite } = filtros;
 
-const where: {
-      tipo?: "RECEITA" | "DESPESA";
-      contaId?: number;
-    } = {};
-if(tipo) {
-  where.tipo = tipo;
-}
+  const where: {
+    tipo?: "RECEITA" | "DESPESA";
+    contaId?: number;
+    categoriaId?: number;
+  } = {};
 
-if(contaId !== undefined) {
-  where.contaId = contaId;
-}
+  if (tipo) {
+    where.tipo = tipo;
+  }
 
-const skip = (pagina - 1) * 3
+  if (contaId !== undefined) {
+    where.contaId = contaId;
+  }
 
+  if (categoriaId !== undefined) {
+    where.categoriaId = categoriaId;
+  }
 
+  const skip = (pagina - 1) * limite;
 
   const transacao = await prisma.transacao.findMany({
     where,
-
-    skip: skip,
+    skip,
     take: limite,
     include: {
       conta: true,
@@ -81,11 +84,9 @@ const skip = (pagina - 1) * 3
     },
   });
 
-  const total = await prisma.transacao.count({
-    where,
-  })
+  const total = await prisma.transacao.count({ where });
 
-  const totalPaginas = Math.ceil(total/limite)
+  const totalPaginas = Math.ceil(total / limite);
 
   return { transacao, total, pagina, limite, totalPaginas };
 }
@@ -98,16 +99,24 @@ export async function buscarTransacao(id: number) {
   });
 
   if (!transacao) {
-    return { erro: "TRANSACÃO NÃO ENCONTRADO" } as const;
+    return { erro: "TRANSAÇÃO NÃO ENCONTRADA" } as const;
   }
 
   return { transacao };
 }
 
-export async function atualizarTransacao(dados: dadosTransacao, id: number) {
+export async function atualizarTransacao(dados: DadosTransacao, id: number) {
   const existe = await buscarTransacao(id);
+
   if ("erro" in existe) {
     return existe;
+  }
+
+  if (
+    existe.transacao.pagamentoContaPagarId !== null ||
+    existe.transacao.recebimentoId !== null
+  ) {
+    return { erro: "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO" } as const;
   }
 
   const conta = await prisma.conta.findUnique({
@@ -147,6 +156,13 @@ export async function deletarTransacao(id: number) {
 
   if ("erro" in existe) {
     return existe;
+  }
+
+  if (
+    existe.transacao.pagamentoContaPagarId !== null ||
+    existe.transacao.recebimentoId !== null
+  ) {
+    return { erro: "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO" } as const;
   }
 
   const transacao = await prisma.transacao.delete({
@@ -216,15 +232,10 @@ export async function buscarDespesaPorId(id: number) {
   return { transacao };
 }
 
-
 export async function listarReceita(contaId: number, pagina = 1, limite = 10) {
-  return listarTransacoes("RECEITA", contaId, pagina, limite)
+  return listarTransacoes({ tipo: "RECEITA", contaId, pagina, limite });
 }
 
-export async function listarDespesa(
-  contaId: number,
-  pagina = 1,
-  limite = 10
-) {
-  return listarTransacoes("DESPESA", contaId, pagina, limite);
+export async function listarDespesa(contaId: number, pagina = 1, limite = 10) {
+  return listarTransacoes({ tipo: "DESPESA", contaId, pagina, limite });
 }

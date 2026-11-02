@@ -2,20 +2,18 @@ import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
 import { buscarContaReceber } from "./contaReceber.service.js";
 
-type dados = {
+type DadosRecebimento = {
   contaReceberId: number;
   contaId: number;
   categoriaId: number;
   valor: string;
 };
 
-export async function cadastrarRecebimento(dados: dados) {
+export async function cadastrarRecebimento(dados: DadosRecebimento) {
   const valor = new Prisma.Decimal(dados.valor);
 
   if (valor.lte(0)) {
-    return {
-      erro: "VALOR DEVE SER MAIOR QUE ZERO",
-    } as const;
+    return { erro: "VALOR DEVE SER MAIOR QUE ZERO" } as const;
   }
 
   return prisma.$transaction(
@@ -25,16 +23,15 @@ export async function cadastrarRecebimento(dados: dados) {
       });
 
       if (!contaReceber) {
-        return { erro: "CONTA A RECEBER NÃO ENCONTRADA" as const };
+        return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
       }
 
       const conta = await tx.conta.findUnique({
-        where: {
-          id: dados.contaId,
-        },
+        where: { id: dados.contaId },
       });
+
       if (!conta) {
-        return { erro: "CONTA A RECEBER NÃO ENCONTRADA" as const };
+        return { erro: "CONTA BANCÁRIA NÃO ENCONTRADA" } as const;
       }
 
       const categoria = await tx.categoria.findUnique({
@@ -42,9 +39,7 @@ export async function cadastrarRecebimento(dados: dados) {
       });
 
       if (!categoria) {
-        return {
-          erro: "CATEGORIA NÃO ENCONTRADA",
-        } as const;
+        return { erro: "CATEGORIA NÃO ENCONTRADA" } as const;
       }
 
       const saldoPendente = contaReceber.valorTotal.minus(
@@ -52,15 +47,11 @@ export async function cadastrarRecebimento(dados: dados) {
       );
 
       if (saldoPendente.lte(0)) {
-        return {
-          erro: "CONTA JA RECEBIDA",
-        } as const;
+        return { erro: "CONTA JÁ RECEBIDA" } as const;
       }
 
       if (valor.gt(saldoPendente)) {
-        return {
-          erro: "RECEBIMENTO MAIOR QUE O SALDO PEDENTE",
-        } as const;
+        return { erro: "RECEBIMENTO MAIOR QUE O SALDO PENDENTE" } as const;
       }
 
       const novoValorRecebido = contaReceber.valorRecebido.plus(valor);
@@ -108,22 +99,14 @@ export async function cadastrarRecebimento(dados: dados) {
   );
 }
 
-
-export async function listarRecebimentos(
-  pagina = 1,
-  limite = 10,
-) {
+export async function listarRecebimentos(pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
 
-  const recebimentos =
-    await prisma.recebimentoContaReceber.findMany({
-      skip,
-      take: limite,
-      orderBy: [
-        { data: "desc" },
-        { id: "desc" },
-      ],
-    });
+  const recebimentos = await prisma.recebimentoContaReceber.findMany({
+    skip,
+    take: limite,
+    orderBy: [{ data: "desc" }, { id: "desc" }],
+  });
 
   const total = await prisma.recebimentoContaReceber.count();
 
@@ -136,27 +119,19 @@ export async function listarRecebimentos(
     total,
     totalPagina,
   };
-
-  
 }
-
 
 export async function buscarRecebimento(id: number) {
   const recebimento = await prisma.recebimentoContaReceber.findUnique({
-    where: {
-      id,
-    },
+    where: { id },
   });
 
   if (!recebimento) {
-    return {
-      erro: "RECEBIMENTO NÃO ENCONTRADO",
-    } as const;
+    return { erro: "RECEBIMENTO NÃO ENCONTRADO" } as const;
   }
 
   return { recebimento };
 }
-
 
 export async function listarRecebimentosPorContaReceber(
   id: number,
@@ -174,26 +149,18 @@ export async function listarRecebimentosPorContaReceber(
   const skip = (pagina - 1) * limite;
 
   // 3. Filtrar pelo ID da conta a receber
-  const where = {
-    contaReceberId: id,
-  };
+  const where = { contaReceberId: id };
 
   // 4. Consultar os recebimentos
-  const recebimentos =
-    await prisma.recebimentoContaReceber.findMany({
-      where,
-      skip,
-      take: limite,
-      orderBy: [
-        { data: "desc" },
-        { id: "desc" },
-      ],
-    });
-
-  // 5. Contar os recebimentos dessa cobrança
-  const total = await prisma.recebimentoContaReceber.count({
+  const recebimentos = await prisma.recebimentoContaReceber.findMany({
     where,
+    skip,
+    take: limite,
+    orderBy: [{ data: "desc" }, { id: "desc" }],
   });
+
+  // 5. Contar os recebimentos dessa conta a receber
+  const total = await prisma.recebimentoContaReceber.count({ where });
 
   const totalPagina = Math.ceil(total / limite);
 
@@ -205,6 +172,3 @@ export async function listarRecebimentosPorContaReceber(
     totalPagina,
   };
 }
-
-
-

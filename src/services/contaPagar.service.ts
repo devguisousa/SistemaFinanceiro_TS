@@ -1,12 +1,13 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
 
-type dados = {
+type DadosContaPagar = {
   descricao: string;
   valorTotal: string;
   vencimento: Date;
 };
 
-export async function cadastrarContaPagar(dados: dados) {
+export async function cadastrarContaPagar(dados: DadosContaPagar) {
   const contaPagar = await prisma.contaPagar.create({
     data: {
       descricao: dados.descricao.trim(),
@@ -64,26 +65,47 @@ export async function buscarContaPagar(id: number) {
     return { erro: "CONTA A PAGAR NÃO EXISTE" } as const;
   }
 
-  return {contaPagar};
+  return { contaPagar };
 }
 
-export async function atualizarContaPagar(id: number, dados: dados) {
-  const existe = await buscarContaPagar(id);
+export async function atualizarContaPagar(id: number, dados: DadosContaPagar) {
+  const valorTotal = new Prisma.Decimal(dados.valorTotal);
 
-  if ("erro" in existe) {
-    return existe;
-  }
+  return prisma.$transaction(
+    async (tx) => {
+      const existe = await tx.contaPagar.findUnique({ where: { id } });
 
-  const contaPagar = await prisma.contaPagar.update({
-    where: { id },
-    data: {
-      descricao: dados.descricao.trim(),
-      valorTotal: dados.valorTotal,
-      vencimento: dados.vencimento,
+      if (!existe) {
+        return { erro: "CONTA A PAGAR NÃO EXISTE" } as const;
+      }
+
+      // O total não pode ficar abaixo do que já foi pago
+      if (valorTotal.lt(existe.valorPago)) {
+        return { erro: "VALOR TOTAL MENOR QUE O JÁ PAGO" } as const;
+      }
+
+      const status = existe.valorPago.lte(0)
+        ? "PENDENTE"
+        : existe.valorPago.eq(valorTotal)
+          ? "PAGA"
+          : "PARCIALMENTE_PAGA";
+
+      const contaPagar = await tx.contaPagar.update({
+        where: { id },
+        data: {
+          descricao: dados.descricao.trim(),
+          valorTotal,
+          vencimento: dados.vencimento,
+          status,
+        },
+      });
+
+      return { contaPagar };
     },
-  });
-
-  return { contaPagar };
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
 }
 
 export async function deletarContaPagar(id: number) {

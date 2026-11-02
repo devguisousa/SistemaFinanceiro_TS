@@ -18,9 +18,9 @@ export async function cadastrar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
-
     return;
   }
 
@@ -34,27 +34,30 @@ export async function listar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
   const filtro = resultado.data;
 
-  const contaPagar = await listarContaPagar(
+  const contasPagar = await listarContaPagar(
     filtro.status,
     filtro.page,
     filtro.limit,
   );
 
-  res.status(200).json(contaPagar);
+  res.status(200).json(contasPagar);
 }
 
 export async function buscar(req: Request, res: Response) {
   const resultado = idContaPagarSchema.safeParse(req.params.id);
+
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -62,9 +65,7 @@ export async function buscar(req: Request, res: Response) {
   const contaPagar = await buscarContaPagar(resultado.data);
 
   if ("erro" in contaPagar) {
-    res.status(404).json({
-      erros: contaPagar.erro,
-    });
+    res.status(404).json({ erro: contaPagar.erro });
     return;
   }
 
@@ -72,32 +73,35 @@ export async function buscar(req: Request, res: Response) {
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultado = idContaPagarSchema.safeParse(req.params.id);
-  if (!resultado.success) {
+  const resultadoId = idContaPagarSchema.safeParse(req.params.id);
+
+  if (!resultadoId.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
     });
     return;
   }
 
-  const outroResultado = atualizarContaPagarSchema.safeParse(req.body);
-  if (!outroResultado.success) {
+  const resultado = atualizarContaPagarSchema.safeParse(req.body);
+
+  if (!resultado.success) {
     res.status(400).json({
-      erros: outroResultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
   const contaPagar = await atualizarContaPagar(
+    resultadoId.data,
     resultado.data,
-    outroResultado.data,
   );
 
   if ("erro" in contaPagar) {
-    res.status(404).json({
-      erros: contaPagar.erro,
-    });
+    const status = contaPagar.erro === "CONTA A PAGAR NÃO EXISTE" ? 404 : 409;
 
+    res.status(status).json({ erro: contaPagar.erro });
     return;
   }
 
@@ -106,9 +110,11 @@ export async function atualizar(req: Request, res: Response) {
 
 export async function deletar(req: Request, res: Response) {
   const resultado = idContaPagarSchema.safeParse(req.params.id);
+
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -116,10 +122,7 @@ export async function deletar(req: Request, res: Response) {
   const deletado = await deletarContaPagar(resultado.data);
 
   if ("erro" in deletado) {
-    res.status(404).json({
-      erro: deletado.erro,
-    });
-
+    res.status(404).json({ erro: deletado.erro });
     return;
   }
 

@@ -15,27 +15,23 @@ export async function cadastrarConta(nome: string, saldoInicial: string) {
   return conta;
 }
 
-export async function listarContas(pagina = 1, limite=10) {
+export async function listarContas(pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
-  
-  
-  
-  
-  
+
   const contas = await prisma.conta.findMany({
     skip,
-  take: limite,
-  
-        orderBy: {
+    take: limite,
+
+    orderBy: {
       id: "asc",
     },
   });
 
-  const total = await prisma.conta.count()
+  const total = await prisma.conta.count();
 
-  const totalPaginas = Math.ceil(total/limite)
+  const totalPaginas = Math.ceil(total / limite);
 
-  return {contas, total, pagina, limite, totalPaginas};
+  return { contas, total, pagina, limite, totalPaginas };
 }
 
 export async function buscarContas(id: number) {

@@ -16,16 +16,17 @@ export async function cadastrar(req: Request, res: Response) {
   const resultado = categoriaSchema.safeParse(req.body);
 
   if (!resultado.success) {
-    res.status(400).json({ erros: resultado.error.issues });
-
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
     return;
   }
 
   const categoria = await cadastrarCategoria(resultado.data.nome);
+
   if ("erro" in categoria) {
-    res.status(409).json({
-      erro: categoria.erro,
-    });
+    res.status(409).json({ erro: categoria.erro });
     return;
   }
 
@@ -33,21 +34,22 @@ export async function cadastrar(req: Request, res: Response) {
 }
 
 export async function listar(req: Request, res: Response) {
-const resultado = paginacaoCategoriaSchema.safeParse(req.query)
-if (!resultado.success) {
+  const resultado = paginacaoCategoriaSchema.safeParse(req.query);
+
+  if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
-  const pagina = resultado.data.page?? 1;
-  const limite = resultado.data.limit?? 10;
+  const pagina = resultado.data.page ?? 1;
+  const limite = resultado.data.limit ?? 10;
 
+  const categorias = await listarCategoria(pagina, limite);
 
-  const categoria = await listarCategoria(pagina, limite);
-
-  res.status(200).json(categoria.categoria);
+  res.status(200).json(categorias);
 }
 
 export async function buscar(req: Request, res: Response) {
@@ -55,7 +57,8 @@ export async function buscar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -63,9 +66,7 @@ export async function buscar(req: Request, res: Response) {
   const categoria = await buscarCategoria(resultado.data);
 
   if ("erro" in categoria) {
-    res.status(404).json({
-      erro: categoria.erro,
-    });
+    res.status(404).json({ erro: categoria.erro });
     return;
   }
 
@@ -73,37 +74,38 @@ export async function buscar(req: Request, res: Response) {
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultado = idCategoriaSchema.safeParse(req.params.id);
+  const resultadoId = idCategoriaSchema.safeParse(req.params.id);
 
-  if (!resultado.success) {
+  if (!resultadoId.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
     });
-
     return;
   }
 
-  const outroResultado = categoriaSchema.safeParse(req.body);
+  const resultado = categoriaSchema.safeParse(req.body);
 
-  if (!outroResultado.success) {
+  if (!resultado.success) {
     res.status(400).json({
-      erros: outroResultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
-
     return;
   }
 
   const categoria = await atualizarCategoria(
-    resultado.data,
-    outroResultado.data.nome,
+    resultadoId.data,
+    resultado.data.nome,
   );
 
   if ("erro" in categoria) {
-    res.status(409).json({
-      erro: categoria.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409,
-    });
+    const status = categoria.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409;
+
+    res.status(status).json({ erro: categoria.erro });
     return;
   }
+
   res.status(200).json(categoria.categoria);
 }
 
@@ -112,19 +114,16 @@ export async function deletar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
-
     return;
   }
 
   const deletado = await deletarCategoria(resultado.data);
 
   if ("erro" in deletado) {
-    res.status(404).json({
-      erro: deletado.erro,
-    });
-
+    res.status(404).json({ erro: deletado.erro });
     return;
   }
 

@@ -1,4 +1,3 @@
-
 import type { Request, Response } from "express";
 
 import {
@@ -6,17 +5,14 @@ import {
   listarPagamento as listarPagamentoService,
   buscarPagamento as buscarPagamentoService,
   listarPagamentoContaPagar as listarPagamentoContaPagarService,
-} from "../services/pagamentosPagar.service.js";
+} from "../services/pagamentoPagar.service.js";
 
 import {
   registrarPagamentoSchema,
   idPagamentoSchema,
   paginacaoPagamentoSchema,
-} from "../schemas/pagamentoPagar.shema.js";
-export async function registrarPagamento(
-  req: Request,
-  res: Response,
-) {
+} from "../schemas/pagamentoPagar.schema.js";
+export async function registrarPagamento(req: Request, res: Response) {
   const resultadoId = idPagamentoSchema.safeParse(req.params);
 
   if (!resultadoId.success) {
@@ -26,7 +22,6 @@ export async function registrarPagamento(
     });
     return;
   }
-
 
   const resultado = registrarPagamentoSchema.safeParse(req.body);
 
@@ -38,14 +33,12 @@ export async function registrarPagamento(
     return;
   }
 
-
   const pagamento = await registrarPagamentoService({
     contaPagarId: resultadoId.data.id,
     contaId: resultado.data.contaId,
     categoriaId: resultado.data.categoriaId,
     valor: resultado.data.valor,
   });
-
 
   if ("erro" in pagamento) {
     if (
@@ -61,15 +54,10 @@ export async function registrarPagamento(
     return;
   }
 
-
   res.status(201).json(pagamento);
 }
 
-
-export async function listarPagamento(
-  req: Request,
-  res: Response,
-) {
+export async function listarPagamento(req: Request, res: Response) {
   const resultado = paginacaoPagamentoSchema.safeParse(req.query);
 
   if (!resultado.success) {
@@ -87,10 +75,7 @@ export async function listarPagamento(
   res.status(200).json(pagamentos);
 }
 
-export async function buscarPagamento(
-  req: Request,
-  res: Response,
-) {
+export async function buscarPagamento(req: Request, res: Response) {
   const resultado = idPagamentoSchema.safeParse(req.params);
 
   if (!resultado.success) {
@@ -111,10 +96,7 @@ export async function buscarPagamento(
   res.status(200).json(pagamento);
 }
 
-export async function listarPagamentoContaPagar(
-  req: Request,
-  res: Response,
-) {
+export async function listarPagamentoContaPagar(req: Request, res: Response) {
   const resultadoId = idPagamentoSchema.safeParse(req.params);
 
   if (!resultadoId.success) {

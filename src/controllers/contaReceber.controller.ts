@@ -3,7 +3,7 @@ import {
   contaReceberSchema,
   idContaReceberSchema,
   paginacaoContaReceberSchema,
-} from "../schemas/contaReceber.shema.js";
+} from "../schemas/contaReceber.schema.js";
 import {
   atualizarContaReceber,
   buscarContaReceber,
@@ -17,7 +17,8 @@ export async function cadastrar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erro: resultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -29,26 +30,29 @@ export async function cadastrar(req: Request, res: Response) {
 
 export async function listar(req: Request, res: Response) {
   const resultado = paginacaoContaReceberSchema.safeParse(req.query);
+
   if (!resultado.success) {
     res.status(400).json({
-      erro: resultado.error.issues,
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
-  const pagina = resultado.data.pagina ?? 1;
-  const limite = resultado.data.limite ?? 10;
+  const { pagina, limite } = resultado.data;
 
-  const contaReceber = await listarContaReceber(pagina, limite);
+  const contasReceber = await listarContaReceber(pagina, limite);
 
-  res.status(200).json(contaReceber);
+  res.status(200).json(contasReceber);
 }
 
 export async function buscar(req: Request, res: Response) {
   const resultado = idContaReceberSchema.safeParse(req.params);
+
   if (!resultado.success) {
     res.status(400).json({
-      erro: resultado.error,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -57,40 +61,43 @@ export async function buscar(req: Request, res: Response) {
 
   if ("erro" in contaReceber) {
     res.status(404).json({ erro: contaReceber.erro });
-
-    return
+    return;
   }
 
   res.status(200).json(contaReceber.contaReceber);
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultado = idContaReceberSchema.safeParse(req.params);
-  if (!resultado.success) {
+  const resultadoId = idContaReceberSchema.safeParse(req.params);
+
+  if (!resultadoId.success) {
     res.status(400).json({
-      erro: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
     });
     return;
   }
 
-  const outroResultado = contaReceberSchema.safeParse(req.body);
+  const resultado = contaReceberSchema.safeParse(req.body);
 
-  if (!outroResultado.success) {
+  if (!resultado.success) {
     res.status(400).json({
-      erro: outroResultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
-
     return;
   }
 
   const contaReceber = await atualizarContaReceber(
-    resultado.data.id,
-    outroResultado.data,
+    resultadoId.data.id,
+    resultado.data,
   );
 
   if ("erro" in contaReceber) {
-    res.status(404).json({ erro: contaReceber.erro });
+    const status =
+      contaReceber.erro === "CONTA A RECEBER NÃO ENCONTRADA" ? 404 : 409;
 
+    res.status(status).json({ erro: contaReceber.erro });
     return;
   }
 
@@ -99,9 +106,11 @@ export async function atualizar(req: Request, res: Response) {
 
 export async function deletar(req: Request, res: Response) {
   const resultado = idContaReceberSchema.safeParse(req.params);
+
   if (!resultado.success) {
     res.status(400).json({
-      erro: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -110,8 +119,8 @@ export async function deletar(req: Request, res: Response) {
 
   if ("erro" in contaReceber) {
     res.status(404).json({ erro: contaReceber.erro });
-
     return;
   }
+
   res.status(204).send();
 }

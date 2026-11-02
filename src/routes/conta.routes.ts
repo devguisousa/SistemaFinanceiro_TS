@@ -15,4 +15,4 @@ contaRoutes.get("/", listar);
 contaRoutes.get("/:id", buscar);
 contaRoutes.put("/:id", atualizar);
 contaRoutes.delete("/:id", deletar);
-contaRoutes.get("/saldo", buscarSaldo);
+contaRoutes.get("/:id/saldo", buscarSaldo);

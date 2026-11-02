@@ -1,12 +1,13 @@
+import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
 
-type dados = {
+type DadosContaReceber = {
   descricao: string;
   valorTotal: string;
   vencimento: Date;
 };
 
-export async function cadastrarContaReceber(dados: dados) {
+export async function cadastrarContaReceber(dados: DadosContaReceber) {
   const contaReceber = await prisma.contaReceber.create({
     data: {
       descricao: dados.descricao,
@@ -18,10 +19,7 @@ export async function cadastrarContaReceber(dados: dados) {
   return { contaReceber };
 }
 
-export async function listarContaReceber(
-  pagina = 1,
-  limite = 10,
-) {
+export async function listarContaReceber(pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
 
   const contaReceber = await prisma.contaReceber.findMany({
@@ -49,23 +47,47 @@ export async function buscarContaReceber(id: number) {
   return { contaReceber };
 }
 
-export async function atualizarContaReceber(id: number, dados: dados) {
-  const existe = await buscarContaReceber(id);
+export async function atualizarContaReceber(
+  id: number,
+  dados: DadosContaReceber,
+) {
+  const valorTotal = new Prisma.Decimal(dados.valorTotal);
 
-  if ("erro" in existe) {
-    return existe;
-  }
+  return prisma.$transaction(
+    async (tx) => {
+      const existe = await tx.contaReceber.findUnique({ where: { id } });
 
-  const contaReceber = await prisma.contaReceber.update({
-    where: { id },
-    data: {
-      descricao: dados.descricao,
-      valorTotal: dados.valorTotal,
-      vencimento: dados.vencimento,
+      if (!existe) {
+        return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
+      }
+
+      // O total não pode ficar abaixo do que já foi recebido
+      if (valorTotal.lt(existe.valorRecebido)) {
+        return { erro: "VALOR TOTAL MENOR QUE O JÁ RECEBIDO" } as const;
+      }
+
+      const status = existe.valorRecebido.lte(0)
+        ? "PENDENTE"
+        : existe.valorRecebido.eq(valorTotal)
+          ? "RECEBIDA"
+          : "PARCIALMENTE_RECEBIDA";
+
+      const contaReceber = await tx.contaReceber.update({
+        where: { id },
+        data: {
+          descricao: dados.descricao,
+          valorTotal,
+          vencimento: dados.vencimento,
+          status,
+        },
+      });
+
+      return { contaReceber };
     },
-  });
-
-  return { contaReceber };
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+    },
+  );
 }
 
 export async function deletarContaReceber(id: number) {

@@ -49,12 +49,12 @@ export async function registrarPagamento(dados: DadosPagamento) {
       const saldoPendente = contaPagar.valorTotal.minus(contaPagar.valorPago);
 
       if (saldoPendente.lte(0)) {
-        return { erro: "CONTA JA QUITADA" } as const;
+        return { erro: "CONTA JÁ QUITADA" } as const;
       }
 
       if (valor.gt(saldoPendente)) {
         return {
-          erro: "PAGAMENTO MAIOR QUE SALDO PEDENTE",
+          erro: "PAGAMENTO MAIOR QUE O SALDO PENDENTE",
         } as const;
       }
 

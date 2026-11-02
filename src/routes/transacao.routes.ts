@@ -22,5 +22,3 @@ transacaoRoutes.get("/receitas/:id", buscarReceita);
 transacaoRoutes.get("/despesas/:id", buscarDespesa);
 transacaoRoutes.get("/:id/receitas", listarReceitasPorConta);
 transacaoRoutes.get("/:id/despesas", listarDespesasPorConta);
-
-

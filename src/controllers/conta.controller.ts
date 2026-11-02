@@ -19,7 +19,8 @@ export async function cadastrar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -27,14 +28,17 @@ export async function cadastrar(req: Request, res: Response) {
   const { nome, saldoInicial } = resultado.data;
 
   const conta = await cadastrarConta(nome, saldoInicial);
+
   res.status(201).json(conta);
 }
 
 export async function listar(req: Request, res: Response) {
-  const resultado = paginacaoContaSchema.safeParse(req.query)
-   if (!resultado.success) {
+  const resultado = paginacaoContaSchema.safeParse(req.query);
+
+  if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -52,20 +56,16 @@ export async function buscar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
-  const id = resultado.data;
-
-  const conta = await buscarContas(id);
+  const conta = await buscarContas(resultado.data);
 
   if (!conta) {
-    res.status(404).json({
-      erro: "conta não encontrada",
-    });
-
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 
@@ -73,33 +73,36 @@ export async function buscar(req: Request, res: Response) {
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultado = idContaSchema.safeParse(req.params.id);
+  const resultadoId = idContaSchema.safeParse(req.params.id);
+
+  if (!resultadoId.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
+    });
+    return;
+  }
+
+  const resultado = atualizarContaSchema.safeParse(req.body);
+
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
     });
     return;
   }
 
-  const outroResultado = atualizarContaSchema.safeParse(req.body);
+  const { nome, saldoInicial } = resultado.data;
 
-  if (!outroResultado.success) {
-    res.status(400).json({
-      erros: outroResultado.error.issues,
-    });
-    return;
-  }
-
-  const id = resultado.data;
-
-  const { nome, saldoInicial } = outroResultado.data;
-
-  const contaAtualizada = await atualizarConta(id, nome, saldoInicial);
+  const contaAtualizada = await atualizarConta(
+    resultadoId.data,
+    nome,
+    saldoInicial,
+  );
 
   if (!contaAtualizada) {
-    res.status(404).json({
-      erro: "Conta não encontrada",
-    });
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 
@@ -111,20 +114,16 @@ export async function deletar(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
-
     return;
   }
-  const id = resultado.data;
 
-  const conta = await deletarConta(id);
+  const conta = await deletarConta(resultado.data);
 
   if (!conta) {
-    res.status(404).json({
-      erro: "conta não encontrada",
-    });
-
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 
@@ -136,7 +135,8 @@ export async function buscarSaldo(req: Request, res: Response) {
 
   if (!resultado.success) {
     res.status(400).json({
-      erros: resultado.error.issues,
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
     });
     return;
   }
@@ -144,12 +144,9 @@ export async function buscarSaldo(req: Request, res: Response) {
   const saldo = await buscarSaldoAtual(resultado.data);
 
   if (!saldo) {
-    res.status(404).json({
-      erro: "Conta não encontrada",
-    });
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 
   res.status(200).json(saldo);
 }
-

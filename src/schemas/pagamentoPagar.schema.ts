@@ -1,4 +1,3 @@
-
 import { z } from "zod";
 
 export const registrarPagamentoSchema = z.object({
@@ -6,14 +5,12 @@ export const registrarPagamentoSchema = z.object({
 
   categoriaId: z.number().int().positive(),
 
-  valor: z.string()
-    .regex(
-      /^(0|[1-9]\d{0,9})(\.\d{1,2})?$/,
-      "Formato de valor inválido"
-    )
+  valor: z
+    .string()
+    .regex(/^(0|[1-9]\d{0,9})(\.\d{1,2})?$/, "Formato de valor inválido")
     .refine(
       (valor) => Number(valor) > 0,
-      "O pagamento deve ser maior que zero"
+      "O pagamento deve ser maior que zero",
     ),
 });
 
