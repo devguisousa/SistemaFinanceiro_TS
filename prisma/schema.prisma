@@ -1,0 +1,112 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Conta {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  saldoInicial Decimal  @default(0) @db.Decimal(12, 2)
+  criadoEm     DateTime @default(now())
+
+  transacao            Transacao[]
+  pagamentosContaPagar PagamentoContaPagar[]
+  recebimento          RecebimentoContaReceber[]
+}
+
+model Categoria {
+  id   Int    @id @default(autoincrement())
+  nome String @unique
+
+  transacoes Transacao[]
+}
+
+enum TipoTransacao {
+  DESPESA
+  RECEITA
+}
+
+model Transacao {
+  id        Int           @id @default(autoincrement())
+  descricao String        @db.VarChar(200)
+  valor     Decimal       @db.Decimal(12, 2)
+  tipo      TipoTransacao
+  data      DateTime      @default(now())
+  contaId   Int
+  conta     Conta         @relation(fields: [contaId], references: [id])
+
+  categoriaId           Int
+  categoria             Categoria @relation(fields: [categoriaId], references: [id])
+  pagamentoContaPagarId Int?      @unique
+  recebimentoId         Int?      @unique
+
+  recebimentos         RecebimentoContaReceber? @relation(fields: [recebimentoId], references: [id])
+  pagamentoContaPagar PagamentoContaPagar?     @relation(fields: [pagamentoContaPagarId], references: [id])
+}
+
+enum StatusContaPagar {
+  PENDENTE
+  PARCIALMENTE_PAGA
+  PAGA
+}
+
+model ContaPagar {
+  id         Int                   @id @default(autoincrement())
+  descricao  String
+  valorTotal Decimal               @db.Decimal(12, 2)
+  valorPago  Decimal               @default(0) @db.Decimal(12, 2)
+  vencimento DateTime
+  status     StatusContaPagar      @default(PENDENTE)
+  criadoEm   DateTime              @default(now())
+  pagamentos PagamentoContaPagar[]
+}
+
+model PagamentoContaPagar {
+  id    Int      @id @default(autoincrement())
+  valor Decimal  @db.Decimal(12, 2)
+  data  DateTime @default(now())
+
+  contaPagarId Int
+  contaPagar   ContaPagar @relation(fields: [contaPagarId], references: [id])
+  contaId      Int
+  conta        Conta      @relation(fields: [contaId], references: [id])
+
+  transacao Transacao?
+}
+
+enum StatusContaReceber {
+  PENDENTE
+  PARCIALMENTE_RECEBIDA
+  RECEBIDA
+}
+
+model ContaReceber {
+  id            Int                @id @default(autoincrement())
+  descricao     String
+  valorTotal    Decimal            @db.Decimal(12, 2)
+  valorRecebido Decimal            @default(0) @db.Decimal(12, 2)
+  vencimento    DateTime
+  status        StatusContaReceber @default(PENDENTE)
+  criadoEm      DateTime           @default(now())
+
+  recebimentos RecebimentoContaReceber[]
+}
+
+model RecebimentoContaReceber {
+  id    Int      @id @default(autoincrement())
+  valor Decimal  @db.Decimal(12, 2)
+  data  DateTime @default(now())
+
+  contaReceberId Int
+  contaReceber   ContaReceber @relation(fields: [contaReceberId], references: [id])
+
+  contaId Int
+  conta   Conta @relation(fields: [contaId], references: [id])
+
+  transacao Transacao?
+}

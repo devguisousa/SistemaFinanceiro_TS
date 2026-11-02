@@ -1,0 +1,132 @@
+import type { Request, Response } from "express";
+import {
+  categoriaSchema,
+  idCategoriaSchema,
+  paginacaoCategoriaSchema,
+} from "../schemas/categoria.schema.js";
+import {
+  atualizarCategoria,
+  buscarCategoria,
+  cadastrarCategoria,
+  deletarCategoria,
+  listarCategoria,
+} from "../services/categoria.service.js";
+
+export async function cadastrar(req: Request, res: Response) {
+  const resultado = categoriaSchema.safeParse(req.body);
+
+  if (!resultado.success) {
+    res.status(400).json({ erros: resultado.error.issues });
+
+    return;
+  }
+
+  const categoria = await cadastrarCategoria(resultado.data.nome);
+  if ("erro" in categoria) {
+    res.status(409).json({
+      erro: categoria.erro,
+    });
+    return;
+  }
+
+  res.status(201).json(categoria.categoria);
+}
+
+export async function listar(req: Request, res: Response) {
+const resultado = paginacaoCategoriaSchema.safeParse(req.query)
+if (!resultado.success) {
+    res.status(400).json({
+      erros: resultado.error.issues,
+    });
+    return;
+  }
+
+  const pagina = resultado.data.page?? 1;
+  const limite = resultado.data.limit?? 10;
+
+
+  const categoria = await listarCategoria(pagina, limite);
+
+  res.status(200).json(categoria.categoria);
+}
+
+export async function buscar(req: Request, res: Response) {
+  const resultado = idCategoriaSchema.safeParse(req.params.id);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erros: resultado.error.issues,
+    });
+    return;
+  }
+
+  const categoria = await buscarCategoria(resultado.data);
+
+  if ("erro" in categoria) {
+    res.status(404).json({
+      erro: categoria.erro,
+    });
+    return;
+  }
+
+  res.status(200).json(categoria.categoria);
+}
+
+export async function atualizar(req: Request, res: Response) {
+  const resultado = idCategoriaSchema.safeParse(req.params.id);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erros: resultado.error.issues,
+    });
+
+    return;
+  }
+
+  const outroResultado = categoriaSchema.safeParse(req.body);
+
+  if (!outroResultado.success) {
+    res.status(400).json({
+      erros: outroResultado.error.issues,
+    });
+
+    return;
+  }
+
+  const categoria = await atualizarCategoria(
+    resultado.data,
+    outroResultado.data.nome,
+  );
+
+  if ("erro" in categoria) {
+    res.status(409).json({
+      erro: categoria.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409,
+    });
+    return;
+  }
+  res.status(200).json(categoria.categoria);
+}
+
+export async function deletar(req: Request, res: Response) {
+  const resultado = idCategoriaSchema.safeParse(req.params.id);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erros: resultado.error.issues,
+    });
+
+    return;
+  }
+
+  const deletado = await deletarCategoria(resultado.data);
+
+  if ("erro" in deletado) {
+    res.status(404).json({
+      erro: deletado.erro,
+    });
+
+    return;
+  }
+
+  res.status(204).send();
+}
