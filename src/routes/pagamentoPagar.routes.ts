@@ -8,7 +8,9 @@ import {
 
 export const pagamentoPagarRoutes = Router();
 
-pagamentoPagarRoutes.post("/contaPagar/:id", registrarPagamento);
-pagamentoPagarRoutes.get("/contaPagar/:id", listarPagamentoContaPagar);
 pagamentoPagarRoutes.get("/", listarPagamento);
 pagamentoPagarRoutes.get("/:id", buscarPagamento);
+pagamentoPagarRoutes.get("/contaPagar/:id", listarPagamentoContaPagar);
+
+// Lançamento: qualquer usuário logado
+pagamentoPagarRoutes.post("/contaPagar/:id", registrarPagamento);

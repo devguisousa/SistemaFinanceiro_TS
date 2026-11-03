@@ -1,31 +1,63 @@
+import bcrypt from "bcrypt";
 import request from "supertest";
 import { app } from "../src/app.js";
+import { prisma } from "../src/prisma.js";
 
 let accessToken = "";
 
-// Cria um usuário e guarda o token usado pelas requisições de api()
-export async function prepararUsuarioLogado() {
-  const credenciais = { email: "teste@teste.com", senha: "123456" };
+// Hash pronto para não pagar o custo do bcrypt em cada teste
+const SENHA_PADRAO = "senha-teste-123";
+const HASH_PADRAO = bcrypt.hashSync(SENHA_PADRAO, 4);
 
-  await request(app).post("/auth/registrar").send(credenciais);
-  const login = await request(app).post("/auth/login").send(credenciais);
+/** Cria um usuário direto no banco e devolve os tokens do login. */
+export async function criarUsuarioLogado(
+  email: string,
+  papel: "ADMIN" | "USUARIO" = "USUARIO",
+) {
+  const usuario = await prisma.usuario.create({
+    data: { email, senha: HASH_PADRAO, papel },
+  });
 
-  accessToken = login.body.accessToken;
-}
-
-// Requisições autenticadas
-export function api() {
-  const r = request(app);
-  const comToken = (t: request.Test) =>
-    t.set("Authorization", `Bearer ${accessToken}`);
+  const login = await request(app)
+    .post("/auth/login")
+    .send({ email, senha: SENHA_PADRAO });
 
   return {
-    get: (url: string) => comToken(r.get(url)),
-    post: (url: string) => comToken(r.post(url)),
-    put: (url: string) => comToken(r.put(url)),
-    delete: (url: string) => comToken(r.delete(url)),
+    id: usuario.id,
+    accessToken: login.body.accessToken as string,
+    refreshToken: login.body.refreshToken as string,
   };
 }
+
+export const senhaPadrao = SENHA_PADRAO;
+
+// Usuário padrão dos testes: ADMIN (pode tudo)
+export async function prepararUsuarioLogado() {
+  accessToken = (await criarUsuarioLogado("admin@teste.com", "ADMIN"))
+    .accessToken;
+}
+
+function comToken(token: () => string) {
+  return () => {
+    const r = request(app);
+    const auth = (t: request.Test) =>
+      t.set("Authorization", `Bearer ${token()}`);
+
+    return {
+      get: (url: string) => auth(r.get(url)),
+      post: (url: string) => auth(r.post(url)),
+      put: (url: string) => auth(r.put(url)),
+      patch: (url: string) => auth(r.patch(url)),
+      delete: (url: string) => auth(r.delete(url)),
+    };
+  };
+}
+
+// Requisições autenticadas como ADMIN
+export const api = comToken(() => accessToken);
+
+// Requisições autenticadas com um token qualquer
+export const apiCom = (token: string) => comToken(() => token)();
 
 // Requisições sem token (rotas públicas e testes de 401)
 export const apiSemToken = () => request(app);
@@ -38,7 +70,10 @@ export async function criarConta(
   return res.body as { id: number };
 }
 
-export async function criarCategoria(nome = "Geral") {
-  const res = await api().post("/categoria").send({ nome });
+export async function criarCategoria(
+  nome = "Geral",
+  tipo: "RECEITA" | "DESPESA" = "RECEITA",
+) {
+  const res = await api().post("/categoria").send({ nome, tipo });
   return res.body as { id: number };
 }

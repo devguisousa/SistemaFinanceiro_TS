@@ -1,5 +1,10 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
+import {
+  SaldoInsuficienteErro,
+  garantirSaldoNaoNegativo,
+} from "../utils/saldo.js";
+import { executarTransacao } from "../utils/transacao.js";
 import { buscarContaPagar } from "./contaPagar.service.js";
 
 type DadosPagamento = {
@@ -12,22 +17,18 @@ type DadosPagamento = {
 export async function registrarPagamento(dados: DadosPagamento) {
   const valor = new Prisma.Decimal(dados.valor);
 
-  return prisma.$transaction(
-    async (tx) => {
+  try {
+    return await executarTransacao(async (tx) => {
       const contaPagar = await tx.contaPagar.findUnique({
         where: { id: dados.contaPagarId },
       });
 
       if (!contaPagar) {
-        return {
-          erro: "CONTA A PAGAR NÃO ENCONTRADA",
-        } as const;
+        return { erro: "CONTA A PAGAR NÃO ENCONTRADA" } as const;
       }
 
       const conta = await tx.conta.findUnique({
-        where: {
-          id: dados.contaId,
-        },
+        where: { id: dados.contaId },
       });
 
       if (!conta) {
@@ -35,15 +36,15 @@ export async function registrarPagamento(dados: DadosPagamento) {
       }
 
       const categoria = await tx.categoria.findUnique({
-        where: {
-          id: dados.categoriaId,
-        },
+        where: { id: dados.categoriaId },
       });
 
       if (!categoria) {
-        return {
-          erro: "CATEGORIA NÃO ENCONTRADA",
-        } as const;
+        return { erro: "CATEGORIA NÃO ENCONTRADA" } as const;
+      }
+
+      if (categoria.tipo !== "DESPESA") {
+        return { erro: "CATEGORIA NÃO É DO TIPO DESPESA" } as const;
       }
 
       const saldoPendente = contaPagar.valorTotal.minus(contaPagar.valorPago);
@@ -53,9 +54,7 @@ export async function registrarPagamento(dados: DadosPagamento) {
       }
 
       if (valor.gt(saldoPendente)) {
-        return {
-          erro: "PAGAMENTO MAIOR QUE O SALDO PENDENTE",
-        } as const;
+        return { erro: "PAGAMENTO MAIOR QUE O SALDO PENDENTE" } as const;
       }
 
       const novoValorPago = contaPagar.valorPago.plus(valor);
@@ -91,25 +90,26 @@ export async function registrarPagamento(dados: DadosPagamento) {
         },
       });
 
+      await garantirSaldoNaoNegativo(tx, [dados.contaId]);
+
       return { pagamento, transacao, contaPagar: contaAtualizada };
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    },
-  );
+    });
+  } catch (erro) {
+    if (erro instanceof SaldoInsuficienteErro) {
+      return { erro: "SALDO INSUFICIENTE" } as const;
+    }
+
+    throw erro;
+  }
 }
 
 export async function listarPagamento(pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
+
   const pagamento = await prisma.pagamentoContaPagar.findMany({
     skip,
     take: limite,
-    orderBy: [
-      {
-        data: "desc",
-      },
-      { id: "asc" },
-    ],
+    orderBy: [{ data: "desc" }, { id: "desc" }],
   });
 
   const total = await prisma.pagamentoContaPagar.count();
@@ -125,7 +125,7 @@ export async function buscarPagamento(id: number) {
   });
 
   if (!pagamento) {
-    return { erro: "PAGAMENTO NÃO REGISTRADO" } as const;
+    return { erro: "PAGAMENTO NÃO ENCONTRADO" } as const;
   }
 
   return { pagamento };
@@ -138,15 +138,13 @@ export async function listarPagamentoContaPagar(
 ) {
   const contaPagar = await buscarContaPagar(id);
 
-  const skip = (pagina - 1) * limite;
-
   if ("erro" in contaPagar) {
     return { erro: contaPagar.erro };
   }
 
-  const where = {
-    contaPagarId: id,
-  };
+  const skip = (pagina - 1) * limite;
+
+  const where = { contaPagarId: id };
 
   const pagamentoContaPagar = await prisma.pagamentoContaPagar.findMany({
     where,

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { api, criarCategoria, criarConta } from "./helpers.js";
 
 let contaId: number;
-let categoriaId: number;
+let categorias: Record<"RECEITA" | "DESPESA", number>;
 
 async function criarTransacao(
   descricao: string,
@@ -11,14 +11,24 @@ async function criarTransacao(
 ) {
   const res = await api()
     .post("/transacao")
-    .send({ descricao, valor: "10.00", tipo, contaId, categoriaId, ...extra });
+    .send({
+      descricao,
+      valor: "10.00",
+      tipo,
+      contaId,
+      categoriaId: categorias[tipo],
+      ...extra,
+    });
   return res;
 }
 
 describe("Transações", () => {
   beforeEach(async () => {
     contaId = (await criarConta()).id;
-    categoriaId = (await criarCategoria()).id;
+    categorias = {
+      RECEITA: (await criarCategoria("Salário", "RECEITA")).id,
+      DESPESA: (await criarCategoria("Mercado", "DESPESA")).id,
+    };
   });
 
   it("cadastra, busca, atualiza e deleta", async () => {
@@ -34,7 +44,7 @@ describe("Transações", () => {
       valor: "12.00",
       tipo: "DESPESA",
       contaId,
-      categoriaId,
+      categoriaId: categorias.DESPESA,
     });
     expect(atualizada.status).toBe(200);
     expect(atualizada.body.descricao).toBe("Café 2");

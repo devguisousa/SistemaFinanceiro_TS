@@ -1,0 +1,76 @@
+# Sistema Financeiro — API
+
+API REST de controle financeiro: contas, categorias, transações, transferências,
+contas a pagar/receber com pagamentos e recebimentos parciais, autenticação JWT
+e papéis (ADMIN / USUARIO).
+
+**Stack:** Node 22+, Express 5, TypeScript, Prisma 7 (PostgreSQL), Zod 4, Vitest.
+
+## Como rodar
+
+```bash
+npm install                 # também gera o Prisma Client (postinstall)
+cp .env.example .env        # preencha DATABASE_URL e JWT_SEGREDO
+npm run db:migrate          # aplica as migrations
+npm run criar-admin         # cria o primeiro ADMIN
+npm run dev                 # http://localhost:3000
+```
+
+Produção: `npm run build && npm start`.
+
+## Scripts
+
+| Script | O que faz |
+|---|---|
+| `dev` | Servidor com reload (tsx watch) |
+| `build` / `start` | Compila para `dist/` e roda o build |
+| `check` | Checagem de tipos |
+| `test` | Testes (precisa de `.env.test` apontando para um banco com `_test` no nome) |
+| `criar-admin` | Cria ou promove um usuário a ADMIN |
+| `db:migrate` | `prisma migrate deploy` |
+
+## Autenticação
+
+1. `POST /auth/login` `{ email, senha }` → `{ accessToken, refreshToken }`
+2. Envie `Authorization: Bearer <accessToken>` em todas as rotas (exceto `/auth/login`, `/auth/refresh`, `/auth/logout` e `/health`).
+3. O access token dura 15 min. Renove com `POST /auth/refresh` `{ refreshToken }` (o refresh muda a cada troca; reutilizar um antigo derruba todas as sessões).
+
+| Rota | Quem |
+|---|---|
+| `GET /auth/me` | logado |
+| `PUT /auth/senha` `{ senhaAtual, novaSenha }` | logado (derruba todas as sessões) |
+| `POST /auth/sair-de-todos` | logado |
+| `POST /auth/registrar` `{ email, senha, papel? }` | ADMIN |
+| `GET/PATCH/DELETE /usuarios…` | ADMIN |
+
+## Permissões
+
+- **USUARIO:** todos os `GET` + lançamentos: `POST /transacao`, `POST /transferencias`, `POST /pagamentoPagar/contaPagar/:id`, `POST /contaReceber/:id/recebimentos`.
+- **ADMIN:** tudo, inclusive criar/editar/apagar contas, categorias, contas a pagar/receber, editar/apagar transações e estornar transferências.
+
+## Rotas principais
+
+| Recurso | Rotas |
+|---|---|
+| Contas | `GET/POST /contas`, `GET/PUT/DELETE /contas/:id`, `GET /contas/:id/saldo` |
+| Categorias | `GET/POST /categoria` (`?tipo=`), `GET/PUT/DELETE /categoria/:id` |
+| Transações | `GET/POST /transacao` (`?tipo&contaId&categoriaId&page&limit`), `GET/PUT/DELETE /transacao/:id`, `GET /transacao/:contaId/receitas`, `/despesas` |
+| Transferências | `GET/POST /transferencias`, `GET/DELETE /transferencias/:id` (estorno) |
+| Contas a pagar | `GET/POST /contaPagar` (`?status&vencidas&page&limit`), `GET/PUT/DELETE /contaPagar/:id` |
+| Pagamentos | `GET /pagamentoPagar`, `GET /pagamentoPagar/:id`, `GET/POST /pagamentoPagar/contaPagar/:id` |
+| Contas a receber | `GET/POST /contaReceber` (`?status&vencidas&pagina&limite`), `GET/PUT/DELETE /contaReceber/:id` |
+| Recebimentos | `GET /recebimentos`, `GET /recebimentos/:id`, `GET/POST /contaReceber/:id/recebimentos` |
+
+## Regras de negócio
+
+- Valores monetários são texto com até 2 casas (`"150.50"`) e sempre saem com 2 casas.
+- Nenhuma conta pode ficar com saldo negativo (despesa, pagamento, transferência, edição ou exclusão).
+- A categoria tem tipo (`RECEITA`/`DESPESA`) e precisa bater com o lançamento.
+- Transações geradas por pagamento, recebimento ou transferência não podem ser editadas/apagadas diretamente.
+- Conta a pagar/receber não pode ter `valorTotal` menor que o já pago/recebido; o status é recalculado.
+- Operações concorrentes no mesmo registro são repetidas automaticamente (até 3x); se o conflito persistir, a resposta é `409`.
+
+## Erros
+
+- Validação: `400 { erro: "DADOS INVÁLIDOS" | "ID INVÁLIDO" | "PARÂMETROS INVÁLIDOS", detalhes }`
+- Regra de negócio: `{ erro: "..." }` com `404` (não encontrado), `409` (conflito), `401`/`403` (acesso).

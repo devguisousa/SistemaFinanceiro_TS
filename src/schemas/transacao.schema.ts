@@ -1,4 +1,19 @@
 import { z } from "zod";
+import {
+  idNumeroSchema,
+  idTextoSchema,
+  limiteSchema,
+  paginaSchema,
+  tipoTransacaoSchema,
+  valorSchema,
+} from "./comum.schema.js";
+
+// Data da transação: "AAAA-MM-DD" ou data/hora ISO ("2026-11-03T14:30:00-03:00")
+const dataTransacaoSchema = z
+  .union([z.iso.datetime({ offset: true }), z.iso.date()])
+  .transform((valor) =>
+    valor.length === 10 ? new Date(`${valor}T00:00:00.000Z`) : new Date(valor),
+  );
 
 export const transacaoSchema = z.object({
   descricao: z
@@ -7,50 +22,29 @@ export const transacaoSchema = z.object({
     .min(1, "Descrição obrigatória")
     .max(200, "Descrição muito grande"),
 
-  valor: z
-    .string()
-    .regex(/^(0|[1-9]\d{0,9})(\.\d{1,2})?$/, "Valor inválido")
-    .refine((valor) => Number(valor) > 0, "O valor deve ser maior que zero"),
+  valor: valorSchema,
 
-  tipo: z.enum(["RECEITA", "DESPESA"]),
+  tipo: tipoTransacaoSchema,
 
-  contaId: z.number().int().positive(),
+  contaId: idNumeroSchema,
 
-  categoriaId: z.number().int().positive(),
+  categoriaId: idNumeroSchema,
+
+  // Opcional: sem data, usa o momento atual (ou mantém a atual na edição)
+  data: dataTransacaoSchema.optional(),
 });
 
-export const idTransacaoSchema = z
-  .string()
-  .regex(/^[1-9]\d*$/, "ID inválido")
-  .transform(Number)
-  .pipe(z.int().positive());
-
-const numeroPositivo = z
-  .string()
-  .regex(/^[1-9]\d*$/, "Deve ser um inteiro positivo")
-  .transform(Number)
-  .pipe(z.number().int().positive());
+export const idTransacaoSchema = idTextoSchema;
 
 export const paginacaoTransacaoSchema = z.object({
-  page: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .pipe(z.number().int().positive())
-    .optional(),
-
-  limit: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .pipe(z.number().int().positive().max(100))
-    .optional(),
+  page: paginaSchema.optional(),
+  limit: limiteSchema.optional(),
 });
 
 export const filtroTransacaoSchema = paginacaoTransacaoSchema.extend({
-  tipo: z.enum(["RECEITA", "DESPESA"]).optional(),
+  tipo: tipoTransacaoSchema.optional(),
 
-  contaId: numeroPositivo.optional(),
+  contaId: idTextoSchema.optional(),
 
-  categoriaId: numeroPositivo.optional(),
+  categoriaId: idTextoSchema.optional(),
 });

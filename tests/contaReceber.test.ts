@@ -20,7 +20,7 @@ function receber(contaReceberId: number, valor: string, extra = {}) {
 describe("Contas a receber", () => {
   beforeEach(async () => {
     contaId = (await criarConta("Banco", "0.00")).id;
-    categoriaId = (await criarCategoria("Serviços")).id;
+    categoriaId = (await criarCategoria("Serviços", "RECEITA")).id;
   });
 
   it("cadastra, lista, busca, atualiza e deleta", async () => {

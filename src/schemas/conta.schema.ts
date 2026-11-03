@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { idTextoSchema, limiteSchema, paginaSchema } from "./comum.schema.js";
 
 const saldoSchema = z
   .string()
@@ -18,24 +19,9 @@ export const cadastrarContaSchema = atualizarContaSchema.extend({
   saldoInicial: saldoSchema.default("0.00"),
 });
 
-export const idContaSchema = z
-  .string()
-  .regex(/^[1-9]\d*$/, "ID inválido")
-  .transform(Number)
-  .pipe(z.int().positive());
+export const idContaSchema = idTextoSchema;
 
 export const paginacaoContaSchema = z.object({
-  page: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .pipe(z.number().int().positive())
-    .optional(),
-
-  limit: z
-    .string()
-    .regex(/^[1-9]\d*$/)
-    .transform(Number)
-    .pipe(z.number().int().positive().max(100))
-    .optional(),
+  page: paginaSchema.optional(),
+  limit: limiteSchema.optional(),
 });

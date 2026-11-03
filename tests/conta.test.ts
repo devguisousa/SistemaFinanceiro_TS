@@ -58,15 +58,28 @@ describe("Contas", () => {
 
   it("calcula o saldo atual em GET /contas/:id/saldo", async () => {
     const conta = await criarConta("Saldo", "100.00");
-    const categoria = await criarCategoria();
+    const receita = await criarCategoria("Salário", "RECEITA");
+    const despesa = await criarCategoria("Mercado", "DESPESA");
 
-    const base = { contaId: conta.id, categoriaId: categoria.id };
+    const base = { contaId: conta.id };
     await api()
       .post("/transacao")
-      .send({ ...base, descricao: "Salário", valor: "50.25", tipo: "RECEITA" });
+      .send({
+        ...base,
+        categoriaId: receita.id,
+        descricao: "Salário",
+        valor: "50.25",
+        tipo: "RECEITA",
+      });
     await api()
       .post("/transacao")
-      .send({ ...base, descricao: "Mercado", valor: "20.00", tipo: "DESPESA" });
+      .send({
+        ...base,
+        categoriaId: despesa.id,
+        descricao: "Mercado",
+        valor: "20.00",
+        tipo: "DESPESA",
+      });
 
     const res = await api().get(`/contas/${conta.id}/saldo`);
 

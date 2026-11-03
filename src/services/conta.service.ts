@@ -1,14 +1,16 @@
 import { prisma } from "../prisma.js";
 import {
-  buscarTotalDespesas,
-  buscarTotalReceitas,
-} from "./transacao.service.js";
+  SaldoInsuficienteErro,
+  calcularSaldo,
+  garantirSaldoNaoNegativo,
+} from "../utils/saldo.js";
+import { executarTransacao } from "../utils/transacao.js";
 
 export async function cadastrarConta(nome: string, saldoInicial: string) {
   const conta = await prisma.conta.create({
     data: {
       nome: nome.trim(),
-      saldoInicial: saldoInicial,
+      saldoInicial,
     },
   });
 
@@ -21,10 +23,7 @@ export async function listarContas(pagina = 1, limite = 10) {
   const contas = await prisma.conta.findMany({
     skip,
     take: limite,
-
-    orderBy: {
-      id: "asc",
-    },
+    orderBy: { id: "asc" },
   });
 
   const total = await prisma.conta.count();
@@ -35,15 +34,9 @@ export async function listarContas(pagina = 1, limite = 10) {
 }
 
 export async function buscarContas(id: number) {
-  const existe = await prisma.conta.findUnique({
+  return prisma.conta.findUnique({
     where: { id },
   });
-
-  if (!existe) {
-    return null;
-  }
-
-  return existe;
 }
 
 export async function atualizarConta(
@@ -51,54 +44,68 @@ export async function atualizarConta(
   nome: string,
   saldoInicial: string,
 ) {
-  const existe = await buscarContas(id);
+  try {
+    return await executarTransacao(async (tx) => {
+      const existe = await tx.conta.findUnique({ where: { id } });
 
-  if (!existe) {
-    return null;
+      if (!existe) {
+        return { erro: "CONTA NÃO ENCONTRADA" } as const;
+      }
+
+      const conta = await tx.conta.update({
+        where: { id },
+        data: { nome: nome.trim(), saldoInicial },
+      });
+
+      // Baixar o saldo inicial não pode deixar a conta negativa
+      await garantirSaldoNaoNegativo(tx, [id]);
+
+      return { conta };
+    });
+  } catch (erro) {
+    if (erro instanceof SaldoInsuficienteErro) {
+      return { erro: "SALDO INSUFICIENTE" } as const;
+    }
+
+    throw erro;
   }
-
-  const contaAtualizada = await prisma.conta.update({
-    where: { id: id },
-
-    data: { nome: nome.trim(), saldoInicial: saldoInicial },
-  });
-
-  return contaAtualizada;
 }
 
 export async function deletarConta(id: number) {
-  const existe = await buscarContas(id);
-
-  if (!existe) {
-    return null;
-  }
-
-  const excluido = await prisma.conta.delete({
-    where: { id },
-  });
-
-  return excluido;
-}
-
-export async function buscarSaldoAtual(id: number) {
   const conta = await buscarContas(id);
 
   if (!conta) {
+    return { erro: "CONTA NÃO ENCONTRADA" } as const;
+  }
+
+  const [transacoes, transferencias] = await Promise.all([
+    prisma.transacao.count({ where: { contaId: id } }),
+    prisma.transferencia.count({
+      where: { OR: [{ contaOrigemId: id }, { contaDestinoId: id }] },
+    }),
+  ]);
+
+  if (transacoes > 0 || transferencias > 0) {
+    return { erro: "CONTA POSSUI MOVIMENTAÇÕES" } as const;
+  }
+
+  await prisma.conta.delete({ where: { id } });
+
+  return { conta };
+}
+
+export async function buscarSaldoAtual(id: number) {
+  const saldo = await calcularSaldo(prisma, id);
+
+  if (!saldo) {
     return null;
   }
 
-  const [receitas, despesas] = await Promise.all([
-    buscarTotalReceitas(id),
-    buscarTotalDespesas(id),
-  ]);
-
-  const saldoAtual = conta.saldoInicial.plus(receitas).minus(despesas);
-
   return {
-    contaId: conta.id,
-    saldoInicial: conta.saldoInicial.toFixed(2),
-    totalReceitas: receitas.toFixed(2),
-    totalDespesas: despesas.toFixed(2),
-    saldoAtual: saldoAtual.toFixed(2),
+    contaId: saldo.conta.id,
+    saldoInicial: saldo.conta.saldoInicial.toFixed(2),
+    totalReceitas: saldo.totalReceitas.toFixed(2),
+    totalDespesas: saldo.totalDespesas.toFixed(2),
+    saldoAtual: saldo.saldoAtual.toFixed(2),
   };
 }

@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  booleanoQuerySchema,
+  dataSchema,
+  idTextoSchema,
+  limiteSchema,
+  paginaSchema,
+  valorSchema,
+} from "./comum.schema.js";
 
 export const contaReceberSchema = z.object({
   descricao: z
@@ -7,21 +15,21 @@ export const contaReceberSchema = z.object({
     .min(1, "DESCRIÇÃO OBRIGATÓRIA")
     .max(200, "DESCRIÇÃO MUITO LONGA"),
 
-  valorTotal: z
-    .string()
-    .regex(/^(0|[1-9]\d{0,9})(\.\d{1,2})?$/, "VALOR INVÁLIDO")
-    .refine((valor) => Number(valor) > 0, "VALOR DEVE SER MAIOR QUE ZERO"),
+  valorTotal: valorSchema,
 
-  vencimento: z.iso
-    .date()
-    .transform((data) => new Date(`${data}T00:00:00.000Z`)),
+  vencimento: dataSchema,
 });
 
 export const idContaReceberSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: idTextoSchema,
 });
 
 export const paginacaoContaReceberSchema = z.object({
-  pagina: z.coerce.number().int().positive().default(1),
-  limite: z.coerce.number().int().positive().max(100).default(10),
+  status: z.enum(["PENDENTE", "PARCIALMENTE_RECEBIDA", "RECEBIDA"]).optional(),
+
+  // true = vencimento antes de hoje e ainda não recebida
+  vencidas: booleanoQuerySchema.optional(),
+
+  pagina: paginaSchema.default(1),
+  limite: limiteSchema.default(10),
 });

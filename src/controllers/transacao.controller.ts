@@ -18,40 +18,30 @@ import {
   listarReceita,
   listarTransacoes,
 } from "../services/transacao.service.js";
+import { responderErro, validar } from "../utils/http.js";
 
 export async function cadastrar(req: Request, res: Response) {
-  const resultado = transacaoSchema.safeParse(req.body);
+  const dados = validar(res, transacaoSchema, req.body, "DADOS INVÁLIDOS");
+  if (!dados) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await cadastrarTransacao(dados);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const transacao = await cadastrarTransacao(resultado.data);
-
-  if ("erro" in transacao) {
-    res.status(404).json({ erro: transacao.erro });
-    return;
-  }
-
-  res.status(201).json(transacao.transacao);
+  res.status(201).json(resultado.transacao);
 }
 
 export async function listar(req: Request, res: Response) {
-  const resultado = filtroTransacaoSchema.safeParse(req.query);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const filtros = resultado.data;
+  const filtros = validar(
+    res,
+    filtroTransacaoSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
+  );
+  if (!filtros) return;
 
   const transacoes = await listarTransacoes({
     tipo: filtros.tipo,
@@ -65,82 +55,44 @@ export async function listar(req: Request, res: Response) {
 }
 
 export async function buscar(req: Request, res: Response) {
-  const resultado = idTransacaoSchema.safeParse(req.params.id);
+  const id = validar(res, idTransacaoSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarTransacao(id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const transacao = await buscarTransacao(resultado.data);
-
-  if ("erro" in transacao) {
-    res.status(404).json({ erro: transacao.erro });
-    return;
-  }
-
-  res.status(200).json(transacao.transacao);
+  res.status(200).json(resultado.transacao);
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultadoId = idTransacaoSchema.safeParse(req.params.id);
+  const id = validar(res, idTransacaoSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
+  const dados = validar(res, transacaoSchema, req.body, "DADOS INVÁLIDOS");
+  if (!dados) return;
+
+  const resultado = await atualizarTransacao(dados, id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const resultado = transacaoSchema.safeParse(req.body);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const transacao = await atualizarTransacao(resultado.data, resultadoId.data);
-
-  if ("erro" in transacao) {
-    const status =
-      transacao.erro === "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO"
-        ? 409
-        : 404;
-
-    res.status(status).json({ erro: transacao.erro });
-    return;
-  }
-
-  res.status(200).json(transacao.transacao);
+  res.status(200).json(resultado.transacao);
 }
 
 export async function deletar(req: Request, res: Response) {
-  const resultado = idTransacaoSchema.safeParse(req.params.id);
+  const id = validar(res, idTransacaoSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
+  const resultado = await deletarTransacao(id);
 
-  const deletado = await deletarTransacao(resultado.data);
-
-  if ("erro" in deletado) {
-    const status =
-      deletado.erro === "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO"
-        ? 409
-        : 404;
-
-    res.status(status).json({ erro: deletado.erro });
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
@@ -148,117 +100,61 @@ export async function deletar(req: Request, res: Response) {
 }
 
 export async function buscarReceita(req: Request, res: Response) {
-  const resultado = idTransacaoSchema.safeParse(req.params.id);
+  const id = validar(res, idTransacaoSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarReceitaPorId(id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const receita = await buscarReceitaPorId(resultado.data);
-
-  if ("erro" in receita) {
-    res.status(404).json({ erro: receita.erro });
-    return;
-  }
-
-  res.status(200).json(receita.transacao);
+  res.status(200).json(resultado.transacao);
 }
 
 export async function buscarDespesa(req: Request, res: Response) {
-  const resultado = idTransacaoSchema.safeParse(req.params.id);
+  const id = validar(res, idTransacaoSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarDespesaPorId(id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const despesa = await buscarDespesaPorId(resultado.data);
+  res.status(200).json(resultado.transacao);
+}
 
-  if ("erro" in despesa) {
-    res.status(404).json({ erro: despesa.erro });
+async function listarPorConta(
+  req: Request,
+  res: Response,
+  listar: typeof listarReceita,
+) {
+  const id = validar(res, idContaSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
+
+  const query = validar(
+    res,
+    paginacaoTransacaoSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
+  );
+  if (!query) return;
+
+  if (!(await buscarContas(id))) {
+    responderErro(res, "CONTA NÃO ENCONTRADA");
     return;
   }
 
-  res.status(200).json(despesa.transacao);
+  res.status(200).json(await listar(id, query.page ?? 1, query.limit ?? 10));
 }
 
 export async function listarReceitasPorConta(req: Request, res: Response) {
-  const resultadoId = idContaSchema.safeParse(req.params.id);
-
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
-    return;
-  }
-
-  const resultado = paginacaoTransacaoSchema.safeParse(req.query);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const conta = await buscarContas(resultadoId.data);
-
-  if (!conta) {
-    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
-    return;
-  }
-
-  const receitas = await listarReceita(
-    resultadoId.data,
-    resultado.data.page ?? 1,
-    resultado.data.limit ?? 10,
-  );
-
-  res.status(200).json(receitas);
+  await listarPorConta(req, res, listarReceita);
 }
 
 export async function listarDespesasPorConta(req: Request, res: Response) {
-  const resultadoId = idContaSchema.safeParse(req.params.id);
-
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
-    return;
-  }
-
-  const resultado = paginacaoTransacaoSchema.safeParse(req.query);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const conta = await buscarContas(resultadoId.data);
-
-  if (!conta) {
-    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
-    return;
-  }
-
-  const despesas = await listarDespesa(
-    resultadoId.data,
-    resultado.data.page ?? 1,
-    resultado.data.limit ?? 10,
-  );
-
-  res.status(200).json(despesas);
+  await listarPorConta(req, res, listarDespesa);
 }

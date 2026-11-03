@@ -17,6 +17,7 @@ beforeEach(async () => {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
       "RefreshToken",
+      "Transferencia",
       "Usuario",
       "RecebimentoContaReceber",
       "PagamentoContaPagar",

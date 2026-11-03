@@ -1,10 +1,12 @@
 import bcrypt from "bcrypt";
+import type { Papel } from "../../../generated/prisma/client.js";
 import { prisma } from "../../prisma.js";
 import {
   gerarAccessToken,
   gerarRefreshToken,
   hashToken,
   limparTokensExpirados,
+  revogarSessoes,
 } from "./token.service.js";
 
 type Credenciais = {
@@ -18,25 +20,34 @@ const CUSTO_BCRYPT = 10;
 // então o tempo de resposta não revela quais e-mails têm cadastro
 const HASH_FALSO = bcrypt.hashSync("senha-que-nunca-confere", CUSTO_BCRYPT);
 
-export async function registrarUsuario({ email, senha }: Credenciais) {
+const dadosPublicos = {
+  id: true,
+  email: true,
+  papel: true,
+  criadoEm: true,
+} as const;
+
+export async function registrarUsuario(
+  dados: Credenciais & { papel?: Papel | undefined },
+) {
   const existe = await prisma.usuario.findUnique({
-    where: { email },
+    where: { email: dados.email },
   });
 
   if (existe) {
     return { erro: "USUÁRIO JÁ EXISTE" } as const;
   }
 
-  const senhaHash = await bcrypt.hash(senha, CUSTO_BCRYPT);
-
   const usuario = await prisma.usuario.create({
     data: {
-      email,
-      senha: senhaHash,
+      email: dados.email,
+      senha: await bcrypt.hash(dados.senha, CUSTO_BCRYPT),
+      papel: dados.papel ?? "USUARIO",
     },
+    select: dadosPublicos,
   });
 
-  return { usuario: { id: usuario.id, email: usuario.email } };
+  return { usuario };
 }
 
 export async function logarUsuario({ email, senha }: Credenciais) {
@@ -56,7 +67,7 @@ export async function logarUsuario({ email, senha }: Credenciais) {
   await limparTokensExpirados(usuario.id);
 
   return {
-    accessToken: gerarAccessToken(usuario.id),
+    accessToken: gerarAccessToken(usuario),
     refreshToken: await gerarRefreshToken(usuario.id),
   };
 }
@@ -65,4 +76,47 @@ export async function deslogarUsuario(refreshToken: string) {
   await prisma.refreshToken.deleteMany({
     where: { hash: hashToken(refreshToken) },
   });
+}
+
+export async function buscarPerfil(id: number) {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id },
+    select: dadosPublicos,
+  });
+
+  if (!usuario) {
+    return { erro: "USUÁRIO NÃO ENCONTRADO" } as const;
+  }
+
+  return { usuario };
+}
+
+/** Troca a senha e derruba todas as sessões (inclusive a atual). */
+export async function trocarSenha(
+  id: number,
+  senhaAtual: string,
+  novaSenha: string,
+) {
+  const usuario = await prisma.usuario.findUnique({ where: { id } });
+
+  if (!usuario) {
+    return { erro: "USUÁRIO NÃO ENCONTRADO" } as const;
+  }
+
+  if (!(await bcrypt.compare(senhaAtual, usuario.senha))) {
+    return { erro: "SENHA ATUAL INCORRETA" } as const;
+  }
+
+  const senha = await bcrypt.hash(novaSenha, CUSTO_BCRYPT);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.usuario.update({ where: { id }, data: { senha } });
+    await revogarSessoes(id, tx);
+  });
+
+  return { ok: true } as const;
+}
+
+export async function sairDeTodos(id: number) {
+  await revogarSessoes(id);
 }

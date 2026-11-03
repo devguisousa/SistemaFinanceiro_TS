@@ -17,11 +17,15 @@ model Conta {
   transacao            Transacao[]
   pagamentosContaPagar PagamentoContaPagar[]
   recebimento          RecebimentoContaReceber[]
+
+  transferenciasEnviadas  Transferencia[] @relation("TransferenciaOrigem")
+  transferenciasRecebidas Transferencia[] @relation("TransferenciaDestino")
 }
 
 model Categoria {
-  id   Int    @id @default(autoincrement())
-  nome String @unique
+  id   Int           @id @default(autoincrement())
+  nome String        @unique
+  tipo TipoTransacao
 
   transacoes Transacao[]
 }
@@ -47,6 +51,9 @@ model Transacao {
 
   recebimentos        RecebimentoContaReceber? @relation(fields: [recebimentoId], references: [id])
   pagamentoContaPagar PagamentoContaPagar?     @relation(fields: [pagamentoContaPagarId], references: [id])
+
+  transferenciaId Int?
+  transferencia   Transferencia? @relation(fields: [transferenciaId], references: [id])
 }
 
 enum StatusContaPagar {
@@ -121,6 +128,8 @@ model Usuario {
   email         String         @unique
   senha         String
   papel         Papel          @default(USUARIO)
+  // Incrementado ao trocar senha / sair de todos: invalida access tokens antigos
+  tokenVersao   Int            @default(0)
   criadoEm      DateTime       @default(now())
   refreshTokens RefreshToken[]
 }
@@ -133,4 +142,19 @@ model RefreshToken {
   usadoEm   DateTime? // quando foi usado (útil para auditoria)
   usuarioId Int
   usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+}
+
+model Transferencia {
+  id        Int      @id @default(autoincrement())
+  valor     Decimal  @db.Decimal(12, 2)
+  descricao String   @db.VarChar(200)
+  data      DateTime @default(now())
+
+  contaOrigemId  Int
+  contaOrigem    Conta @relation("TransferenciaOrigem", fields: [contaOrigemId], references: [id])
+  contaDestinoId Int
+  contaDestino   Conta @relation("TransferenciaDestino", fields: [contaDestinoId], references: [id])
+
+  // Sempre duas: DESPESA na origem e RECEITA no destino
+  transacoes Transacao[]
 }

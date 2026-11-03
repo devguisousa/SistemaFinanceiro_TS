@@ -1,134 +1,92 @@
 import type { Request, Response } from "express";
-
 import {
-  registrarPagamento as registrarPagamentoService,
-  listarPagamento as listarPagamentoService,
-  buscarPagamento as buscarPagamentoService,
-  listarPagamentoContaPagar as listarPagamentoContaPagarService,
-} from "../services/pagamentoPagar.service.js";
-
-import {
-  registrarPagamentoSchema,
   idPagamentoSchema,
   paginacaoPagamentoSchema,
+  registrarPagamentoSchema,
 } from "../schemas/pagamentoPagar.schema.js";
+import {
+  buscarPagamento as buscarPagamentoService,
+  listarPagamentoContaPagar as listarPagamentoContaPagarService,
+  listarPagamento as listarPagamentoService,
+  registrarPagamento as registrarPagamentoService,
+} from "../services/pagamentoPagar.service.js";
+import { responderErro, validar } from "../utils/http.js";
+
 export async function registrarPagamento(req: Request, res: Response) {
-  const resultadoId = idPagamentoSchema.safeParse(req.params);
+  const params = validar(res, idPagamentoSchema, req.params, "ID INVÁLIDO");
+  if (!params) return;
 
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
-    return;
-  }
+  const dados = validar(
+    res,
+    registrarPagamentoSchema,
+    req.body,
+    "DADOS INVÁLIDOS",
+  );
+  if (!dados) return;
 
-  const resultado = registrarPagamentoSchema.safeParse(req.body);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const pagamento = await registrarPagamentoService({
-    contaPagarId: resultadoId.data.id,
-    contaId: resultado.data.contaId,
-    categoriaId: resultado.data.categoriaId,
-    valor: resultado.data.valor,
+  const resultado = await registrarPagamentoService({
+    contaPagarId: params.id,
+    ...dados,
   });
 
-  if ("erro" in pagamento) {
-    if (
-      pagamento.erro === "CONTA A PAGAR NÃO ENCONTRADA" ||
-      pagamento.erro === "CONTA BANCÁRIA NÃO ENCONTRADA" ||
-      pagamento.erro === "CATEGORIA NÃO ENCONTRADA"
-    ) {
-      res.status(404).json(pagamento);
-      return;
-    }
-
-    res.status(409).json(pagamento);
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  res.status(201).json(pagamento);
+  res.status(201).json(resultado);
 }
 
 export async function listarPagamento(req: Request, res: Response) {
-  const resultado = paginacaoPagamentoSchema.safeParse(req.query);
+  const query = validar(
+    res,
+    paginacaoPagamentoSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
+  );
+  if (!query) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const { pagina, limite } = resultado.data;
-
-  const pagamentos = await listarPagamentoService(pagina, limite);
-
-  res.status(200).json(pagamentos);
+  res
+    .status(200)
+    .json(await listarPagamentoService(query.pagina, query.limite));
 }
 
 export async function buscarPagamento(req: Request, res: Response) {
-  const resultado = idPagamentoSchema.safeParse(req.params);
+  const params = validar(res, idPagamentoSchema, req.params, "ID INVÁLIDO");
+  if (!params) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarPagamentoService(params.id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const pagamento = await buscarPagamentoService(resultado.data.id);
-
-  if ("erro" in pagamento) {
-    res.status(404).json(pagamento);
-    return;
-  }
-
-  res.status(200).json(pagamento);
+  res.status(200).json(resultado);
 }
 
 export async function listarPagamentoContaPagar(req: Request, res: Response) {
-  const resultadoId = idPagamentoSchema.safeParse(req.params);
+  const params = validar(res, idPagamentoSchema, req.params, "ID INVÁLIDO");
+  if (!params) return;
 
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
-    return;
-  }
+  const query = validar(
+    res,
+    paginacaoPagamentoSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
+  );
+  if (!query) return;
 
-  const resultado = paginacaoPagamentoSchema.safeParse(req.query);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const { pagina, limite } = resultado.data;
-
-  const pagamentos = await listarPagamentoContaPagarService(
-    resultadoId.data.id,
-    pagina,
-    limite,
+  const resultado = await listarPagamentoContaPagarService(
+    params.id,
+    query.pagina,
+    query.limite,
   );
 
-  if ("erro" in pagamentos) {
-    res.status(404).json(pagamentos);
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  res.status(200).json(pagamentos);
+  res.status(200).json(resultado);
 }

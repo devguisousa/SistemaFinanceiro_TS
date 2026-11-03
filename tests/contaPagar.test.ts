@@ -20,7 +20,7 @@ function pagar(contaPagarId: number, valor: string, extra = {}) {
 describe("Contas a pagar", () => {
   beforeEach(async () => {
     contaId = (await criarConta("Banco", "500.00")).id;
-    categoriaId = (await criarCategoria("Moradia")).id;
+    categoriaId = (await criarCategoria("Moradia", "DESPESA")).id;
   });
 
   it("cadastra, lista, atualiza e deleta", async () => {
@@ -44,7 +44,7 @@ describe("Contas a pagar", () => {
 
     const removida = await api().get(`/contaPagar/${id}`);
     expect(removida.status).toBe(404);
-    expect(removida.body).toEqual({ erro: "CONTA A PAGAR NÃO EXISTE" });
+    expect(removida.body).toEqual({ erro: "CONTA A PAGAR NÃO ENCONTRADA" });
   });
 
   it("rejeita data inválida", async () => {

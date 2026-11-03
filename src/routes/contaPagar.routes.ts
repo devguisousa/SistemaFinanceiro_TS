@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { somenteAdmin } from "../autenticacao/middlewares/exigirPapel.js";
 import {
   atualizar,
   buscar,
@@ -9,8 +10,10 @@ import {
 
 export const contaPagarRoutes = Router();
 
-contaPagarRoutes.post("/", cadastrar);
 contaPagarRoutes.get("/", listar);
 contaPagarRoutes.get("/:id", buscar);
-contaPagarRoutes.put("/:id", atualizar);
-contaPagarRoutes.delete("/:id", deletar);
+
+// Somente ADMIN
+contaPagarRoutes.post("/", somenteAdmin, cadastrar);
+contaPagarRoutes.put("/:id", somenteAdmin, atualizar);
+contaPagarRoutes.delete("/:id", somenteAdmin, deletar);

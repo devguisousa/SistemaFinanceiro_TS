@@ -12,117 +12,85 @@ import {
   deletarContaPagar,
   listarContaPagar,
 } from "../services/contaPagar.service.js";
+import { responderErro, validar } from "../utils/http.js";
 
 export async function cadastrar(req: Request, res: Response) {
-  const resultado = cadastrarContaPagarSchema.safeParse(req.body);
+  const dados = validar(
+    res,
+    cadastrarContaPagarSchema,
+    req.body,
+    "DADOS INVÁLIDOS",
+  );
+  if (!dados) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
+  const resultado = await cadastrarContaPagar(dados);
 
-  const contaPagar = await cadastrarContaPagar(resultado.data);
-
-  res.status(201).json(contaPagar.contaPagar);
+  res.status(201).json(resultado.contaPagar);
 }
 
 export async function listar(req: Request, res: Response) {
-  const resultado = filtroContaPagarSchema.safeParse(req.query);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const filtro = resultado.data;
-
-  const contasPagar = await listarContaPagar(
-    filtro.status,
-    filtro.page,
-    filtro.limit,
+  const filtro = validar(
+    res,
+    filtroContaPagarSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
   );
+  if (!filtro) return;
+
+  const contasPagar = await listarContaPagar({
+    status: filtro.status,
+    vencidas: filtro.vencidas,
+    pagina: filtro.page,
+    limite: filtro.limit,
+  });
 
   res.status(200).json(contasPagar);
 }
 
 export async function buscar(req: Request, res: Response) {
-  const resultado = idContaPagarSchema.safeParse(req.params.id);
+  const id = validar(res, idContaPagarSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarContaPagar(id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const contaPagar = await buscarContaPagar(resultado.data);
-
-  if ("erro" in contaPagar) {
-    res.status(404).json({ erro: contaPagar.erro });
-    return;
-  }
-
-  res.status(200).json(contaPagar.contaPagar);
+  res.status(200).json(resultado.contaPagar);
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultadoId = idContaPagarSchema.safeParse(req.params.id);
+  const id = validar(res, idContaPagarSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
-    return;
-  }
-
-  const resultado = atualizarContaPagarSchema.safeParse(req.body);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const contaPagar = await atualizarContaPagar(
-    resultadoId.data,
-    resultado.data,
+  const dados = validar(
+    res,
+    atualizarContaPagarSchema,
+    req.body,
+    "DADOS INVÁLIDOS",
   );
+  if (!dados) return;
 
-  if ("erro" in contaPagar) {
-    const status = contaPagar.erro === "CONTA A PAGAR NÃO EXISTE" ? 404 : 409;
+  const resultado = await atualizarContaPagar(id, dados);
 
-    res.status(status).json({ erro: contaPagar.erro });
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  res.status(200).json(contaPagar.contaPagar);
+  res.status(200).json(resultado.contaPagar);
 }
 
 export async function deletar(req: Request, res: Response) {
-  const resultado = idContaPagarSchema.safeParse(req.params.id);
+  const id = validar(res, idContaPagarSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
+  const resultado = await deletarContaPagar(id);
 
-  const deletado = await deletarContaPagar(resultado.data);
-
-  if ("erro" in deletado) {
-    res.status(404).json({ erro: deletado.erro });
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 

@@ -3,10 +3,14 @@ import { api, criarCategoria } from "./helpers.js";
 
 describe("Categorias", () => {
   it("cadastra e impede nome duplicado (409)", async () => {
-    const criada = await api().post("/categoria").send({ nome: "Lazer" });
+    const criada = await api()
+      .post("/categoria")
+      .send({ nome: "Lazer", tipo: "DESPESA" });
     expect(criada.status).toBe(201);
 
-    const duplicada = await api().post("/categoria").send({ nome: " Lazer " });
+    const duplicada = await api()
+      .post("/categoria")
+      .send({ nome: " Lazer ", tipo: "DESPESA" });
     expect(duplicada.status).toBe(409);
     expect(duplicada.body).toEqual({ erro: "CATEGORIA JÁ EXISTE" });
   });
@@ -31,15 +35,21 @@ describe("Categorias", () => {
     const a = await criarCategoria("A");
     await criarCategoria("B");
 
-    const naoExiste = await api().put("/categoria/999").send({ nome: "X" });
+    const naoExiste = await api()
+      .put("/categoria/999")
+      .send({ nome: "X", tipo: "RECEITA" });
     expect(naoExiste.status).toBe(404);
     expect(naoExiste.body).toEqual({ erro: "CATEGORIA NÃO ENCONTRADA" });
 
-    const conflito = await api().put(`/categoria/${a.id}`).send({ nome: "B" });
+    const conflito = await api()
+      .put(`/categoria/${a.id}`)
+      .send({ nome: "B", tipo: "RECEITA" });
     expect(conflito.status).toBe(409);
     expect(conflito.body).toEqual({ erro: "CATEGORIA JÁ EXISTE" });
 
-    const ok = await api().put(`/categoria/${a.id}`).send({ nome: "A2" });
+    const ok = await api()
+      .put(`/categoria/${a.id}`)
+      .send({ nome: "A2", tipo: "RECEITA" });
     expect(ok.status).toBe(200);
     expect(ok.body.nome).toBe("A2");
   });

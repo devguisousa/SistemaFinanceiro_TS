@@ -1,5 +1,6 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
+import { executarTransacao } from "../utils/transacao.js";
 import { buscarContaReceber } from "./contaReceber.service.js";
 
 type DadosRecebimento = {
@@ -16,87 +17,86 @@ export async function cadastrarRecebimento(dados: DadosRecebimento) {
     return { erro: "VALOR DEVE SER MAIOR QUE ZERO" } as const;
   }
 
-  return prisma.$transaction(
-    async (tx) => {
-      const contaReceber = await tx.contaReceber.findUnique({
-        where: { id: dados.contaReceberId },
-      });
+  return executarTransacao(async (tx) => {
+    const contaReceber = await tx.contaReceber.findUnique({
+      where: { id: dados.contaReceberId },
+    });
 
-      if (!contaReceber) {
-        return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
-      }
+    if (!contaReceber) {
+      return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
+    }
 
-      const conta = await tx.conta.findUnique({
-        where: { id: dados.contaId },
-      });
+    const conta = await tx.conta.findUnique({
+      where: { id: dados.contaId },
+    });
 
-      if (!conta) {
-        return { erro: "CONTA BANCÁRIA NÃO ENCONTRADA" } as const;
-      }
+    if (!conta) {
+      return { erro: "CONTA BANCÁRIA NÃO ENCONTRADA" } as const;
+    }
 
-      const categoria = await tx.categoria.findUnique({
-        where: { id: dados.categoriaId },
-      });
+    const categoria = await tx.categoria.findUnique({
+      where: { id: dados.categoriaId },
+    });
 
-      if (!categoria) {
-        return { erro: "CATEGORIA NÃO ENCONTRADA" } as const;
-      }
+    if (!categoria) {
+      return { erro: "CATEGORIA NÃO ENCONTRADA" } as const;
+    }
 
-      const saldoPendente = contaReceber.valorTotal.minus(
-        contaReceber.valorRecebido,
-      );
+    if (categoria.tipo !== "RECEITA") {
+      return { erro: "CATEGORIA NÃO É DO TIPO RECEITA" } as const;
+    }
 
-      if (saldoPendente.lte(0)) {
-        return { erro: "CONTA JÁ RECEBIDA" } as const;
-      }
+    const saldoPendente = contaReceber.valorTotal.minus(
+      contaReceber.valorRecebido,
+    );
 
-      if (valor.gt(saldoPendente)) {
-        return { erro: "RECEBIMENTO MAIOR QUE O SALDO PENDENTE" } as const;
-      }
+    if (saldoPendente.lte(0)) {
+      return { erro: "CONTA JÁ RECEBIDA" } as const;
+    }
 
-      const novoValorRecebido = contaReceber.valorRecebido.plus(valor);
+    if (valor.gt(saldoPendente)) {
+      return { erro: "RECEBIMENTO MAIOR QUE O SALDO PENDENTE" } as const;
+    }
 
-      const novoStatus = novoValorRecebido.eq(contaReceber.valorTotal)
-        ? "RECEBIDA"
-        : "PARCIALMENTE_RECEBIDA";
+    const novoValorRecebido = contaReceber.valorRecebido.plus(valor);
 
-      const recebimento = await tx.recebimentoContaReceber.create({
-        data: {
-          valor,
-          contaReceberId: dados.contaReceberId,
-          contaId: dados.contaId,
-        },
-      });
+    const novoStatus = novoValorRecebido.eq(contaReceber.valorTotal)
+      ? "RECEBIDA"
+      : "PARCIALMENTE_RECEBIDA";
 
-      const transacao = await tx.transacao.create({
-        data: {
-          descricao: `Recebimento: ${contaReceber.descricao}`.slice(0, 200),
-          valor,
-          tipo: "RECEITA",
-          contaId: dados.contaId,
-          categoriaId: dados.categoriaId,
-          recebimentoId: recebimento.id,
-        },
-      });
+    const recebimento = await tx.recebimentoContaReceber.create({
+      data: {
+        valor,
+        contaReceberId: dados.contaReceberId,
+        contaId: dados.contaId,
+      },
+    });
 
-      const contaAtualizada = await tx.contaReceber.update({
-        where: { id: dados.contaReceberId },
-        data: {
-          valorRecebido: novoValorRecebido,
-          status: novoStatus,
-        },
-      });
+    const transacao = await tx.transacao.create({
+      data: {
+        descricao: `Recebimento: ${contaReceber.descricao}`.slice(0, 200),
+        valor,
+        tipo: "RECEITA",
+        contaId: dados.contaId,
+        categoriaId: dados.categoriaId,
+        recebimentoId: recebimento.id,
+      },
+    });
 
-      return {
-        recebimento,
-        transacao,
-        contaReceber: contaAtualizada,
-      };
-    },
-    {
-      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-    },
-  );
+    const contaAtualizada = await tx.contaReceber.update({
+      where: { id: dados.contaReceberId },
+      data: {
+        valorRecebido: novoValorRecebido,
+        status: novoStatus,
+      },
+    });
+
+    return {
+      recebimento,
+      transacao,
+      contaReceber: contaAtualizada,
+    };
+  });
 }
 
 export async function listarRecebimentos(pagina = 1, limite = 10) {

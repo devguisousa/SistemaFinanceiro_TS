@@ -1,37 +1,37 @@
-import "dotenv/config";
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { Prisma } from "../../../generated/prisma/client.js";
+import { env } from "../../config/env.js";
 import { prisma } from "../../prisma.js";
-
-const segredo = process.env.JWT_SEGREDO;
-
-
-if (!segredo) {
-  throw new Error("JWT_SEGREDO não definido no .env");
-}
-
-const JWT_SEGREDO: string = segredo;
 
 const SETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
 
-export function gerarAccessToken(usuarioId: number) {
-  return jwt.sign({ sub: String(usuarioId) }, JWT_SEGREDO, {
-    algorithm: "HS256",
-    expiresIn: "15m",
-  });
+type UsuarioToken = { id: number; tokenVersao: number };
+
+export function gerarAccessToken(usuario: UsuarioToken) {
+  return jwt.sign(
+    { sub: String(usuario.id), ver: usuario.tokenVersao },
+    env.JWT_SEGREDO,
+    { algorithm: "HS256", expiresIn: "15m" },
+  );
 }
 
-// Retorna o id do usuário, ou null se o token for inválido/expirado
-export function verificarAccessToken(token: string): number | null {
+// Retorna id e versão do token, ou null se for inválido/expirado
+export function verificarAccessToken(token: string): UsuarioToken | null {
   try {
-    const payload = jwt.verify(token, JWT_SEGREDO, { algorithms: ["HS256"] });
+    const payload = jwt.verify(token, env.JWT_SEGREDO, {
+      algorithms: ["HS256"],
+    });
 
-    if (typeof payload !== "object" || !/^[1-9]\d*$/.test(payload.sub ?? "")) {
+    if (
+      typeof payload !== "object" ||
+      !/^[1-9]\d*$/.test(payload.sub ?? "") ||
+      !Number.isInteger(payload.ver)
+    ) {
       return null;
     }
 
-    return Number(payload.sub);
+    return { id: Number(payload.sub), tokenVersao: payload.ver as number };
   } catch {
     return null;
   }
@@ -68,16 +68,35 @@ export async function limparTokensExpirados(
   });
 }
 
+/** Invalida todas as sessões: access tokens (pela versão) e refresh tokens. */
+export async function revogarSessoes(
+  usuarioId: number,
+  db: Prisma.TransactionClient = prisma,
+) {
+  await db.usuario.update({
+    where: { id: usuarioId },
+    data: { tokenVersao: { increment: 1 } },
+  });
+
+  await db.refreshToken.deleteMany({ where: { usuarioId } });
+}
+
 type ResultadoRefresh =
   | { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" | "REFRESH TOKEN REUTILIZADO" }
   | { accessToken: string; refreshToken: string };
 
+/**
+ * Troca um refresh token por um par novo (rotação).
+ * Se um token já usado for reapresentado, é sinal de vazamento:
+ * todas as sessões do usuário são revogadas.
+ */
 export async function trocarRefreshToken(
   refreshToken: string,
 ): Promise<ResultadoRefresh> {
   return prisma.$transaction(async (tx) => {
     const registro = await tx.refreshToken.findUnique({
       where: { hash: hashToken(refreshToken) },
+      include: { usuario: { select: { id: true, tokenVersao: true } } },
     });
 
     if (!registro) {
@@ -85,9 +104,7 @@ export async function trocarRefreshToken(
     }
 
     if (registro.usado) {
-      await tx.refreshToken.deleteMany({
-        where: { usuarioId: registro.usuarioId },
-      });
+      await revogarSessoes(registro.usuarioId, tx);
 
       return { erro: "REFRESH TOKEN REUTILIZADO" } as const;
     }
@@ -96,7 +113,8 @@ export async function trocarRefreshToken(
       return { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" } as const;
     }
 
-
+    // updateMany com "usado: false" garante que só uma requisição
+    // concorrente consegue usar o mesmo token
     const marcado = await tx.refreshToken.updateMany({
       where: { id: registro.id, usado: false },
       data: { usado: true, usadoEm: new Date() },
@@ -109,7 +127,7 @@ export async function trocarRefreshToken(
     await limparTokensExpirados(registro.usuarioId, tx);
 
     return {
-      accessToken: gerarAccessToken(registro.usuarioId),
+      accessToken: gerarAccessToken(registro.usuario),
       refreshToken: await gerarRefreshToken(registro.usuarioId, tx),
     };
   });

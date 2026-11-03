@@ -2,14 +2,16 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { api, criarCategoria, criarConta } from "./helpers.js";
 
 let contaId: number;
-let categoriaId: number;
+let despesaId: number;
+let receitaId: number;
 
 const vencimento = "2026-12-10";
 
 describe("Regras de negócio", () => {
   beforeEach(async () => {
     contaId = (await criarConta()).id;
-    categoriaId = (await criarCategoria()).id;
+    despesaId = (await criarCategoria("Contas", "DESPESA")).id;
+    receitaId = (await criarCategoria("Serviços", "RECEITA")).id;
   });
 
   describe("edição de conta a pagar", () => {
@@ -21,7 +23,7 @@ describe("Regras de negócio", () => {
       ).body.id;
       await api()
         .post(`/pagamentoPagar/contaPagar/${id}`)
-        .send({ contaId, categoriaId, valor: pago });
+        .send({ contaId, categoriaId: despesaId, valor: pago });
       return id;
     }
 
@@ -67,7 +69,7 @@ describe("Regras de negócio", () => {
       ).body.id;
       await api()
         .post(`/contaReceber/${id}/recebimentos`)
-        .send({ contaId, categoriaId, valor: recebido });
+        .send({ contaId, categoriaId: receitaId, valor: recebido });
       return id;
     }
 
@@ -105,7 +107,7 @@ describe("Regras de negócio", () => {
       ).body.id;
       const pagamento = await api()
         .post(`/pagamentoPagar/contaPagar/${contaPagarId}`)
-        .send({ contaId, categoriaId, valor: "100" });
+        .send({ contaId, categoriaId: despesaId, valor: "100" });
 
       const transacaoId = pagamento.body.transacao.id;
 
@@ -114,11 +116,11 @@ describe("Regras de negócio", () => {
         valor: "1",
         tipo: "DESPESA",
         contaId,
-        categoriaId,
+        categoriaId: despesaId,
       });
       expect(editar.status).toBe(409);
       expect(editar.body).toEqual({
-        erro: "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO",
+        erro: "TRANSAÇÃO VINCULADA A PAGAMENTO, RECEBIMENTO OU TRANSFERÊNCIA",
       });
 
       const apagar = await api().delete(`/transacao/${transacaoId}`);
@@ -133,7 +135,7 @@ describe("Regras de negócio", () => {
       ).body.id;
       const recebimento = await api()
         .post(`/contaReceber/${contaReceberId}/recebimentos`)
-        .send({ contaId, categoriaId, valor: "100" });
+        .send({ contaId, categoriaId: receitaId, valor: "100" });
 
       const apagar = await api().delete(
         `/transacao/${recebimento.body.transacao.id}`,
@@ -147,7 +149,7 @@ describe("Regras de negócio", () => {
         valor: "5",
         tipo: "RECEITA",
         contaId,
-        categoriaId,
+        categoriaId: receitaId,
       });
 
       expect((await api().delete(`/transacao/${t.body.id}`)).status).toBe(204);

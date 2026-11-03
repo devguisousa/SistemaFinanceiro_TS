@@ -1,21 +1,25 @@
 import { z } from "zod";
+import {
+  idNumeroSchema,
+  idTextoSchema,
+  limiteSchema,
+  paginaSchema,
+  valorSchema,
+} from "./comum.schema.js";
 
 export const recebimentoSchema = z.object({
-  contaId: z.number().int().positive(),
+  contaId: idNumeroSchema,
 
-  categoriaId: z.number().int().positive(),
+  categoriaId: idNumeroSchema,
 
-  valor: z
-    .string()
-    .regex(/^(0|[1-9]\d{0,9})(\.\d{1,2})?$/, "VALOR INVÁLIDO")
-    .refine((valor) => Number(valor) > 0, "VALOR DEVE SER MAIOR QUE ZERO"),
+  valor: valorSchema,
 });
 
 export const idRecebimentoSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: idTextoSchema,
 });
 
 export const paginacaoRecebimentoSchema = z.object({
-  pagina: z.coerce.number().int().positive().default(1),
-  limite: z.coerce.number().int().positive().max(100).default(10),
+  pagina: paginaSchema.default(1),
+  limite: limiteSchema.default(10),
 });

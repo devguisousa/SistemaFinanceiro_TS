@@ -8,10 +8,12 @@ import {
 
 export const recebimentoContaReceberRoutes = Router();
 
-recebimentoContaReceberRoutes.post("/contaReceber/:id/recebimentos", cadastrar);
+recebimentoContaReceberRoutes.get("/recebimentos", listar);
+recebimentoContaReceberRoutes.get("/recebimentos/:id", buscar);
 recebimentoContaReceberRoutes.get(
   "/contaReceber/:id/recebimentos",
   listarPorContaReceber,
 );
-recebimentoContaReceberRoutes.get("/recebimentos", listar);
-recebimentoContaReceberRoutes.get("/recebimentos/:id", buscar);
+
+// Lançamento: qualquer usuário logado
+recebimentoContaReceberRoutes.post("/contaReceber/:id/recebimentos", cadastrar);

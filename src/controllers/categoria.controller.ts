@@ -11,119 +11,79 @@ import {
   deletarCategoria,
   listarCategoria,
 } from "../services/categoria.service.js";
+import { responderErro, validar } from "../utils/http.js";
 
 export async function cadastrar(req: Request, res: Response) {
-  const resultado = categoriaSchema.safeParse(req.body);
+  const dados = validar(res, categoriaSchema, req.body, "DADOS INVÁLIDOS");
+  if (!dados) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await cadastrarCategoria(dados);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const categoria = await cadastrarCategoria(resultado.data.nome);
-
-  if ("erro" in categoria) {
-    res.status(409).json({ erro: categoria.erro });
-    return;
-  }
-
-  res.status(201).json(categoria.categoria);
+  res.status(201).json(resultado.categoria);
 }
 
 export async function listar(req: Request, res: Response) {
-  const resultado = paginacaoCategoriaSchema.safeParse(req.query);
+  const query = validar(
+    res,
+    paginacaoCategoriaSchema,
+    req.query,
+    "PARÂMETROS INVÁLIDOS",
+  );
+  if (!query) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "PARÂMETROS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const pagina = resultado.data.page ?? 1;
-  const limite = resultado.data.limit ?? 10;
-
-  const categorias = await listarCategoria(pagina, limite);
+  const categorias = await listarCategoria(
+    query.page ?? 1,
+    query.limit ?? 10,
+    query.tipo,
+  );
 
   res.status(200).json(categorias);
 }
 
 export async function buscar(req: Request, res: Response) {
-  const resultado = idCategoriaSchema.safeParse(req.params.id);
+  const id = validar(res, idCategoriaSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
+  const resultado = await buscarCategoria(id);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const categoria = await buscarCategoria(resultado.data);
-
-  if ("erro" in categoria) {
-    res.status(404).json({ erro: categoria.erro });
-    return;
-  }
-
-  res.status(200).json(categoria.categoria);
+  res.status(200).json(resultado.categoria);
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const resultadoId = idCategoriaSchema.safeParse(req.params.id);
+  const id = validar(res, idCategoriaSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultadoId.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultadoId.error.issues,
-    });
+  const dados = validar(res, categoriaSchema, req.body, "DADOS INVÁLIDOS");
+  if (!dados) return;
+
+  const resultado = await atualizarCategoria(id, dados);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 
-  const resultado = categoriaSchema.safeParse(req.body);
-
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "DADOS INVÁLIDOS",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
-
-  const categoria = await atualizarCategoria(
-    resultadoId.data,
-    resultado.data.nome,
-  );
-
-  if ("erro" in categoria) {
-    const status = categoria.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409;
-
-    res.status(status).json({ erro: categoria.erro });
-    return;
-  }
-
-  res.status(200).json(categoria.categoria);
+  res.status(200).json(resultado.categoria);
 }
 
 export async function deletar(req: Request, res: Response) {
-  const resultado = idCategoriaSchema.safeParse(req.params.id);
+  const id = validar(res, idCategoriaSchema, req.params.id, "ID INVÁLIDO");
+  if (id === null) return;
 
-  if (!resultado.success) {
-    res.status(400).json({
-      erro: "ID INVÁLIDO",
-      detalhes: resultado.error.issues,
-    });
-    return;
-  }
+  const resultado = await deletarCategoria(id);
 
-  const deletado = await deletarCategoria(resultado.data);
-
-  if ("erro" in deletado) {
-    res.status(404).json({ erro: deletado.erro });
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
     return;
   }
 

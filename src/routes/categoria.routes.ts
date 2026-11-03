@@ -1,17 +1,19 @@
 import { Router } from "express";
-
+import { somenteAdmin } from "../autenticacao/middlewares/exigirPapel.js";
 import {
-  cadastrar,
-  listar,
-  buscar,
   atualizar,
+  buscar,
+  cadastrar,
   deletar,
+  listar,
 } from "../controllers/categoria.controller.js";
 
 export const categoriaRoutes = Router();
 
-categoriaRoutes.post("/", cadastrar);
 categoriaRoutes.get("/", listar);
 categoriaRoutes.get("/:id", buscar);
-categoriaRoutes.put("/:id", atualizar);
-categoriaRoutes.delete("/:id", deletar);
+
+// Somente ADMIN
+categoriaRoutes.post("/", somenteAdmin, cadastrar);
+categoriaRoutes.put("/:id", somenteAdmin, atualizar);
+categoriaRoutes.delete("/:id", somenteAdmin, deletar);
