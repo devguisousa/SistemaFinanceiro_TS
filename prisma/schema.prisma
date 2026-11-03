@@ -45,7 +45,7 @@ model Transacao {
   pagamentoContaPagarId Int?      @unique
   recebimentoId         Int?      @unique
 
-  recebimentos         RecebimentoContaReceber? @relation(fields: [recebimentoId], references: [id])
+  recebimentos        RecebimentoContaReceber? @relation(fields: [recebimentoId], references: [id])
   pagamentoContaPagar PagamentoContaPagar?     @relation(fields: [pagamentoContaPagarId], references: [id])
 }
 
@@ -109,4 +109,23 @@ model RecebimentoContaReceber {
   conta   Conta @relation(fields: [contaId], references: [id])
 
   transacao Transacao?
+}
+
+model Usuario {
+  id            Int            @id @default(autoincrement())
+  email         String         @unique
+  senha         String
+  papel         String         @default("USUARIO") // "USUARIO" ou "ADMIN"
+  criadoEm      DateTime       @default(now())
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement())
+  hash      String    @unique
+  expiraEm  DateTime
+  usado     Boolean   @default(false) // já foi trocado por um par novo?
+  usadoEm   DateTime? // quando foi usado (útil para auditoria)
+  usuarioId Int
+  usuario   Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
 }

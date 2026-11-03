@@ -29,15 +29,13 @@ describe("Transações", () => {
 
     expect((await api().get(`/transacao/${id}`)).status).toBe(200);
 
-    const atualizada = await api()
-      .put(`/transacao/${id}`)
-      .send({
-        descricao: "Café 2",
-        valor: "12.00",
-        tipo: "DESPESA",
-        contaId,
-        categoriaId,
-      });
+    const atualizada = await api().put(`/transacao/${id}`).send({
+      descricao: "Café 2",
+      valor: "12.00",
+      tipo: "DESPESA",
+      contaId,
+      categoriaId,
+    });
     expect(atualizada.status).toBe(200);
     expect(atualizada.body.descricao).toBe("Café 2");
 

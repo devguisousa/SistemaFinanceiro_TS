@@ -11,10 +11,13 @@ if (!process.env.DATABASE_URL?.includes("_test")) {
 }
 
 const { prisma } = await import("../src/prisma.js");
+const { prepararUsuarioLogado } = await import("./helpers.js");
 
 beforeEach(async () => {
   await prisma.$executeRawUnsafe(`
     TRUNCATE TABLE
+      "RefreshToken",
+      "Usuario",
       "RecebimentoContaReceber",
       "PagamentoContaPagar",
       "Transacao",
@@ -24,6 +27,8 @@ beforeEach(async () => {
       "Conta"
     RESTART IDENTITY CASCADE
   `);
+
+  await prepararUsuarioLogado();
 });
 
 afterAll(async () => {

@@ -33,13 +33,11 @@ describe("Contas a pagar", () => {
     const lista = await api().get("/contaPagar?status=PENDENTE");
     expect(lista.body.total).toBe(1);
 
-    const atualizada = await api()
-      .put(`/contaPagar/${id}`)
-      .send({
-        descricao: "Aluguel novo",
-        valorTotal: "120.00",
-        vencimento: "2026-12-15",
-      });
+    const atualizada = await api().put(`/contaPagar/${id}`).send({
+      descricao: "Aluguel novo",
+      valorTotal: "120.00",
+      vencimento: "2026-12-15",
+    });
     expect(atualizada.status).toBe(200);
 
     expect((await api().delete(`/contaPagar/${id}`)).status).toBe(204);

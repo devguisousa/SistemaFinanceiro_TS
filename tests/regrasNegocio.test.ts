@@ -109,15 +109,13 @@ describe("Regras de negócio", () => {
 
       const transacaoId = pagamento.body.transacao.id;
 
-      const editar = await api()
-        .put(`/transacao/${transacaoId}`)
-        .send({
-          descricao: "x",
-          valor: "1",
-          tipo: "DESPESA",
-          contaId,
-          categoriaId,
-        });
+      const editar = await api().put(`/transacao/${transacaoId}`).send({
+        descricao: "x",
+        valor: "1",
+        tipo: "DESPESA",
+        contaId,
+        categoriaId,
+      });
       expect(editar.status).toBe(409);
       expect(editar.body).toEqual({
         erro: "TRANSAÇÃO VINCULADA A PAGAMENTO OU RECEBIMENTO",
@@ -144,15 +142,13 @@ describe("Regras de negócio", () => {
     });
 
     it("transação avulsa continua editável", async () => {
-      const t = await api()
-        .post("/transacao")
-        .send({
-          descricao: "Avulsa",
-          valor: "5",
-          tipo: "RECEITA",
-          contaId,
-          categoriaId,
-        });
+      const t = await api().post("/transacao").send({
+        descricao: "Avulsa",
+        valor: "5",
+        tipo: "RECEITA",
+        contaId,
+        categoriaId,
+      });
 
       expect((await api().delete(`/transacao/${t.body.id}`)).status).toBe(204);
     });

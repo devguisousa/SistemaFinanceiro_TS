@@ -36,13 +36,11 @@ describe("Contas a receber", () => {
 
     expect((await api().get(`/contaReceber/${id}`)).status).toBe(200);
 
-    const atualizada = await api()
-      .put(`/contaReceber/${id}`)
-      .send({
-        descricao: "Freela 2",
-        valorTotal: "250.00",
-        vencimento: "2026-12-21",
-      });
+    const atualizada = await api().put(`/contaReceber/${id}`).send({
+      descricao: "Freela 2",
+      valorTotal: "250.00",
+      vencimento: "2026-12-21",
+    });
     expect(atualizada.status).toBe(200);
     expect(atualizada.body.descricao).toBe("Freela 2");
 

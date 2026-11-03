@@ -1,4 +1,6 @@
 import express from "express";
+import { autenticar } from "./autenticacao/middlewares/autenticar.js";
+import { authRotas } from "./autenticacao/routes/auth.routes.js";
 import { errorMiddleware } from "./middleware/erro.middleware.js";
 import { categoriaRoutes } from "./routes/categoria.routes.js";
 import { contaRoutes } from "./routes/conta.routes.js";
@@ -11,6 +13,12 @@ import { transacaoRoutes } from "./routes/transacao.routes.js";
 export const app = express();
 
 app.use(express.json());
+
+// Rotas públicas
+app.use("/auth", authRotas);
+
+// Daqui para baixo, todas as rotas exigem Bearer token
+app.use(autenticar);
 
 app.use("/contas", contaRoutes);
 app.use("/transacao", transacaoRoutes);
