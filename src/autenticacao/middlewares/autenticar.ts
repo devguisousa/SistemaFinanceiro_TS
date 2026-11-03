@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
-import { verificarAccessToken } from "../service/token.service.js";
+import { verificarAccessToken } from "../services/token.service.js";
 
 export interface RequisicaoAutenticada extends Request {
   usuarioId?: number;

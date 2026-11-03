@@ -111,11 +111,16 @@ model RecebimentoContaReceber {
   transacao Transacao?
 }
 
+enum Papel {
+  USUARIO
+  ADMIN
+}
+
 model Usuario {
   id            Int            @id @default(autoincrement())
   email         String         @unique
   senha         String
-  papel         String         @default("USUARIO") // "USUARIO" ou "ADMIN"
+  papel         Papel          @default(USUARIO)
   criadoEm      DateTime       @default(now())
   refreshTokens RefreshToken[]
 }

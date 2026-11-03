@@ -6,7 +6,7 @@ import { prisma } from "../../prisma.js";
 
 const segredo = process.env.JWT_SEGREDO;
 
-// Falha ao subir o servidor, e não no primeiro login
+
 if (!segredo) {
   throw new Error("JWT_SEGREDO não definido no .env");
 }
@@ -72,11 +72,6 @@ type ResultadoRefresh =
   | { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" | "REFRESH TOKEN REUTILIZADO" }
   | { accessToken: string; refreshToken: string };
 
-/**
- * Troca um refresh token por um par novo (rotação).
- * Se um token já usado for reapresentado, é sinal de vazamento:
- * todos os tokens do usuário são revogados e ele precisa logar de novo.
- */
 export async function trocarRefreshToken(
   refreshToken: string,
 ): Promise<ResultadoRefresh> {
@@ -101,8 +96,7 @@ export async function trocarRefreshToken(
       return { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" } as const;
     }
 
-    // updateMany com "usado: false" garante que só uma requisição
-    // concorrente consegue usar o mesmo token
+
     const marcado = await tx.refreshToken.updateMany({
       where: { id: registro.id, usado: false },
       data: { usado: true, usadoEm: new Date() },
