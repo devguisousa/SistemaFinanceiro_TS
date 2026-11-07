@@ -85,11 +85,7 @@ type ResultadoRefresh =
   | { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" | "REFRESH TOKEN REUTILIZADO" }
   | { accessToken: string; refreshToken: string };
 
-/**
- * Troca um refresh token por um par novo (rotação).
- * Se um token já usado for reapresentado, é sinal de vazamento:
- * todas as sessões do usuário são revogadas.
- */
+  
 export async function trocarRefreshToken(
   refreshToken: string,
 ): Promise<ResultadoRefresh> {
