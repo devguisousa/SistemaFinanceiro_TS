@@ -32,16 +32,24 @@ Produção: `npm run build && npm start`.
 ## Autenticação
 
 1. `POST /auth/login` `{ email, senha }` → `{ accessToken, refreshToken }`
-2. Envie `Authorization: Bearer <accessToken>` em todas as rotas (exceto `/auth/login`, `/auth/refresh`, `/auth/logout` e `/health`).
+2. Envie `Authorization: Bearer <accessToken>` em todas as rotas (exceto `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/status`, `/auth/primeiro-admin` e `/health`).
 3. O access token dura 15 min. Renove com `POST /auth/refresh` `{ refreshToken }` (o refresh muda a cada troca; reutilizar um antigo derruba todas as sessões).
 
 | Rota | Quem |
 |---|---|
+| `GET /auth/status` → `{ precisaAdmin }` | público |
+| `POST /auth/primeiro-admin` `{ email, senha }` → `{ accessToken, refreshToken }` | público, só enquanto não existe ADMIN (senão `409`) |
 | `GET /auth/me` | logado |
 | `PUT /auth/senha` `{ senhaAtual, novaSenha }` | logado (derruba todas as sessões) |
 | `POST /auth/sair-de-todos` | logado |
 | `POST /auth/registrar` `{ email, senha, papel? }` | ADMIN |
 | `GET/PATCH/DELETE /usuarios…` | ADMIN |
+
+### Primeiro acesso
+
+Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAdmin": true }` e o front-end oferece criar o administrador por `POST /auth/primeiro-admin`. Depois que existe um ADMIN, essa rota responde `409 JÁ EXISTE UM ADMINISTRADOR`. Pedidos simultâneos são serializados por um lock no banco: só um vira ADMIN.
+
+**Risco:** enquanto não há ADMIN, quem acessar o site primeiro vira ADMIN. Em produção, crie o admin logo após o deploy (pelo site ou com `npm run criar-admin`).
 
 ## Permissões
 

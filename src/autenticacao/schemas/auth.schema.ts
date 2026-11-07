@@ -31,6 +31,13 @@ export const cadastroSchema = z.object({
   papel: papelSchema.default("USUARIO"),
 });
 
+// Primeiro acesso: cria o ADMIN quando o banco ainda não tem nenhum.
+// Não aceita "papel": quem chega por aqui sempre vira ADMIN
+export const primeiroAdminSchema = z.object({
+  email: emailSchema,
+  senha: novaSenhaSchema,
+});
+
 // Molde do login: aqui só confere se mandou, não precisa de regra de tamanho
 export const loginSchema = z.object({
   email: emailSchema,

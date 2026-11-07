@@ -50,6 +50,44 @@ export async function registrarUsuario(
   return { usuario };
 }
 
+export async function precisaDeAdmin() {
+  const admins = await prisma.usuario.count({ where: { papel: "ADMIN" } });
+  return admins === 0;
+}
+
+/** Cria o primeiro ADMIN e já devolve os tokens. Só funciona se não houver nenhum ADMIN. */
+export async function criarPrimeiroAdmin(dados: Credenciais) {
+  // Hash fora da transação para não segurar o lock durante o bcrypt
+  const senha = await bcrypt.hash(dados.senha, CUSTO_BCRYPT);
+
+  return prisma.$transaction(async (tx) => {
+    // Pedidos simultâneos esperam aqui um pelo outro; o lock é liberado no commit.
+    // 7428301 é só uma chave fixa que identifica este lock
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(7428301)`;
+
+    const admins = await tx.usuario.count({ where: { papel: "ADMIN" } });
+    if (admins > 0) {
+      return { erro: "JÁ EXISTE UM ADMINISTRADOR" } as const;
+    }
+
+    const existe = await tx.usuario.findUnique({
+      where: { email: dados.email },
+    });
+    if (existe) {
+      return { erro: "USUÁRIO JÁ EXISTE" } as const;
+    }
+
+    const usuario = await tx.usuario.create({
+      data: { email: dados.email, senha, papel: "ADMIN" },
+    });
+
+    return {
+      accessToken: gerarAccessToken(usuario),
+      refreshToken: await gerarRefreshToken(usuario.id, tx),
+    };
+  });
+}
+
 export async function logarUsuario({ email, senha }: Credenciais) {
   const usuario = await prisma.usuario.findUnique({
     where: { email },

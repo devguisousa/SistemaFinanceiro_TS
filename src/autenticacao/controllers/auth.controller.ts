@@ -3,13 +3,16 @@ import { responderErro, validar } from "../../utils/http.js";
 import {
   cadastroSchema,
   loginSchema,
+  primeiroAdminSchema,
   refreshSchema,
   trocarSenhaSchema,
 } from "../schemas/auth.schema.js";
 import {
   buscarPerfil,
+  criarPrimeiroAdmin,
   deslogarUsuario,
   logarUsuario,
+  precisaDeAdmin,
   registrarUsuario,
   sairDeTodos,
   trocarSenha,
@@ -29,6 +32,26 @@ export async function registrar(req: Request, res: Response) {
   }
 
   res.status(201).json(resultado.usuario);
+}
+
+// GET /auth/status (pública): a tela de login pergunta se precisa criar o ADMIN
+export async function status(req: Request, res: Response) {
+  res.status(200).json({ precisaAdmin: await precisaDeAdmin() });
+}
+
+// POST /auth/primeiro-admin (pública): só funciona com o banco sem ADMIN
+export async function primeiroAdmin(req: Request, res: Response) {
+  const dados = validar(res, primeiroAdminSchema, req.body, "DADOS INVÁLIDOS");
+  if (!dados) return;
+
+  const resultado = await criarPrimeiroAdmin(dados);
+
+  if ("erro" in resultado) {
+    responderErro(res, resultado.erro);
+    return;
+  }
+
+  res.status(201).json(resultado);
 }
 
 export async function login(req: Request, res: Response) {
