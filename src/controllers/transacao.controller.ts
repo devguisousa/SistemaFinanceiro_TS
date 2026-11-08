@@ -4,6 +4,7 @@ import {
   filtroTransacaoSchema,
   idTransacaoSchema,
   paginacaoTransacaoSchema,
+  resumoTransacaoSchema,
   transacaoSchema,
 } from "../schemas/transacao.schema.js";
 import { buscarContas } from "../services/conta.service.js";
@@ -17,6 +18,7 @@ import {
   listarDespesa,
   listarReceita,
   listarTransacoes,
+  resumirTransacoes,
 } from "../services/transacao.service.js";
 
 export async function cadastrar(req: Request, res: Response) {
@@ -59,11 +61,29 @@ export async function listar(req: Request, res: Response) {
     tipo: filtros.tipo,
     contaId: filtros.contaId,
     categoriaId: filtros.categoriaId,
+    inicio: filtros.inicio,
+    fim: filtros.fim,
     pagina: filtros.page ?? 1,
     limite: filtros.limit ?? 10,
   });
 
   res.status(200).json(transacoes);
+}
+
+export async function resumo(req: Request, res: Response) {
+  const resultado = resumoTransacaoSchema.safeParse(req.query);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const { inicio, fim } = resultado.data;
+
+  res.status(200).json(await resumirTransacoes(req.usuario!.id, inicio, fim));
 }
 
 export async function buscar(req: Request, res: Response) {

@@ -41,10 +41,49 @@ export const paginacaoTransacaoSchema = z.object({
   limit: limiteSchema.optional(),
 });
 
-export const filtroTransacaoSchema = paginacaoTransacaoSchema.extend({
-  tipo: tipoTransacaoSchema.optional(),
+// Limites de um período (início e fim entram): data/hora ISO com fuso, ou
+// "AAAA-MM-DD", que vale do começo (início) ou do fim (fim) do dia em UTC.
+// O front manda o começo e o fim do dia no fuso de quem está usando
+const limitePeriodoSchema = (fimDoDia: boolean) =>
+  z
+    .union([z.iso.datetime({ offset: true }), z.iso.date()])
+    .transform((valor) =>
+      valor.length === 10
+        ? new Date(`${valor}T${fimDoDia ? "23:59:59.999" : "00:00:00.000"}Z`)
+        : new Date(valor),
+    );
 
-  contaId: idTextoSchema.optional(),
+const inicioSchema = limitePeriodoSchema(false);
+const fimSchema = limitePeriodoSchema(true);
 
-  categoriaId: idTextoSchema.optional(),
-});
+type Periodo = { inicio?: Date | undefined; fim?: Date | undefined };
+
+const periodoEmOrdem = ({ inicio, fim }: Periodo) =>
+  !inicio || !fim || inicio <= fim;
+
+const erroPeriodo = {
+  message: "O início do período deve vir antes do fim",
+  path: ["fim"],
+};
+
+export const filtroTransacaoSchema = paginacaoTransacaoSchema
+  .extend({
+    tipo: tipoTransacaoSchema.optional(),
+
+    contaId: idTextoSchema.optional(),
+
+    categoriaId: idTextoSchema.optional(),
+
+    inicio: inicioSchema.optional(),
+
+    fim: fimSchema.optional(),
+  })
+  .refine(periodoEmOrdem, erroPeriodo);
+
+export const resumoTransacaoSchema = z
+  .object({
+    inicio: inicioSchema,
+
+    fim: fimSchema,
+  })
+  .refine(periodoEmOrdem, erroPeriodo);

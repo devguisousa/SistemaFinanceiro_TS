@@ -70,12 +70,13 @@ Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAd
 |---|---|
 | Contas | `GET/POST /contas`, `GET/PUT/DELETE /contas/:id`, `GET /contas/:id/saldo` |
 | Categorias | `GET/POST /categoria` (`?tipo=`), `GET/PUT/DELETE /categoria/:id` |
-| Transações | `GET/POST /transacao` (`?tipo&contaId&categoriaId&page&limit`), `GET/PUT/DELETE /transacao/:id`, `GET /transacao/:contaId/receitas`, `/despesas` |
+| Transações | `GET/POST /transacao` (`?tipo&contaId&categoriaId&inicio&fim&page&limit`), `GET/PUT/DELETE /transacao/:id`, `GET /transacao/:contaId/receitas`, `/despesas` |
+| Resumo por período | `GET /transacao/resumo?inicio&fim`: receitas, despesas, resultado e totais por categoria |
 | Transferências | `GET/POST /transferencias`, `GET/DELETE /transferencias/:id` (estorno) |
 | Contas a pagar | `GET/POST /contaPagar` (`?status&vencidas&page&limit`), `GET/PUT/DELETE /contaPagar/:id` |
-| Pagamentos | `GET /pagamentoPagar`, `GET /pagamentoPagar/:id`, `GET/POST /pagamentoPagar/contaPagar/:id` |
+| Pagamentos | `GET /pagamentoPagar`, `GET/DELETE /pagamentoPagar/:id`, `GET/POST /pagamentoPagar/contaPagar/:id` |
 | Contas a receber | `GET/POST /contaReceber` (`?status&vencidas&pagina&limite`), `GET/PUT/DELETE /contaReceber/:id` |
-| Recebimentos | `GET /recebimentos`, `GET /recebimentos/:id`, `GET/POST /contaReceber/:id/recebimentos` |
+| Recebimentos | `GET /recebimentos`, `GET/DELETE /recebimentos/:id`, `GET/POST /contaReceber/:id/recebimentos` |
 
 ## Regras de negócio
 
@@ -84,6 +85,7 @@ Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAd
 - A categoria tem tipo (`RECEITA`/`DESPESA`) e precisa bater com o lançamento.
 - Transações geradas por pagamento, recebimento ou transferência não podem ser editadas/apagadas diretamente.
 - Conta a pagar/receber não pode ter `valorTotal` menor que o já pago/recebido; o status é recalculado.
+- Período (`inicio`/`fim`): data/hora ISO com fuso ou `AAAA-MM-DD` (dia inteiro, em UTC); as duas pontas entram. O resumo deixa as transferências de fora: só mudam o dinheiro de conta.
 - Operações concorrentes no mesmo registro são repetidas automaticamente (até 5 vezes); se o conflito persistir, a resposta é `409`.
 
 ## Deploy (Vercel + Neon)

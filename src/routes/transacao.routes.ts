@@ -9,11 +9,14 @@ import {
   listar,
   listarDespesasPorConta,
   listarReceitasPorConta,
+  resumo,
 } from "../controllers/transacao.controller.js";
 
 export const transacaoRoutes = Router();
 
 transacaoRoutes.get("/", listar);
+// Antes de "/:id", senão "resumo" seria lido como id
+transacaoRoutes.get("/resumo", resumo);
 transacaoRoutes.get("/:id", buscar);
 transacaoRoutes.get("/receitas/:id", buscarReceita);
 transacaoRoutes.get("/despesas/:id", buscarDespesa);

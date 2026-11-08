@@ -1,4 +1,4 @@
-import type { Prisma, Transacao } from "../../generated/prisma/client.js";
+import { Prisma, type Transacao } from "../../generated/prisma/client.js";
 import { executarTransacao, prisma } from "../prisma.js";
 import {
   SaldoInsuficienteErro,
@@ -20,6 +20,8 @@ type FiltrosTransacao = {
   tipo?: TipoTransacao | undefined;
   contaId?: number | undefined;
   categoriaId?: number | undefined;
+  inicio?: Date | undefined;
+  fim?: Date | undefined;
   pagina: number;
   limite: number;
 };
@@ -120,6 +122,13 @@ export async function listarTransacoes(
     where.categoriaId = filtros.categoriaId;
   }
 
+  if (filtros.inicio || filtros.fim) {
+    const data: Prisma.DateTimeFilter<"Transacao"> = {};
+    if (filtros.inicio) data.gte = filtros.inicio;
+    if (filtros.fim) data.lte = filtros.fim;
+    where.data = data;
+  }
+
   const pagina = filtros.pagina;
   const limite = filtros.limite;
   const skip = (pagina - 1) * limite;
@@ -140,6 +149,72 @@ export async function listarTransacoes(
   const totalPaginas = Math.ceil(total / limite);
 
   return { transacao, total, pagina, limite, totalPaginas };
+}
+
+// Receitas e despesas do período (início e fim entram), no total e por
+// categoria. Transferência só move dinheiro entre as contas do próprio
+// usuário: não é receita nem despesa, então fica de fora
+export async function resumirTransacoes(
+  usuarioId: number,
+  inicio: Date,
+  fim: Date,
+) {
+  const grupos = await prisma.transacao.groupBy({
+    by: ["categoriaId", "tipo"],
+    where: {
+      conta: { usuarioId },
+      data: { gte: inicio, lte: fim },
+      transferenciaId: null,
+    },
+    _sum: { valor: true },
+    _count: { _all: true },
+  });
+
+  const categorias = await prisma.categoria.findMany({
+    where: { id: { in: grupos.map((g) => g.categoriaId) } },
+    select: { id: true, nome: true },
+  });
+
+  const nomes = new Map(categorias.map((c) => [c.id, c.nome]));
+
+  let receitas = new Prisma.Decimal(0);
+  let despesas = new Prisma.Decimal(0);
+  let qtdReceitas = 0;
+  let qtdDespesas = 0;
+
+  for (const g of grupos) {
+    const total = g._sum.valor ?? new Prisma.Decimal(0);
+
+    if (g.tipo === "RECEITA") {
+      receitas = receitas.plus(total);
+      qtdReceitas += g._count._all;
+    } else {
+      despesas = despesas.plus(total);
+      qtdDespesas += g._count._all;
+    }
+  }
+
+  const porCategoria = grupos
+    .map((g) => ({
+      categoriaId: g.categoriaId,
+      nome: nomes.get(g.categoriaId) ?? "",
+      tipo: g.tipo,
+      total: g._sum.valor ?? new Prisma.Decimal(0),
+      quantidade: g._count._all,
+    }))
+    .sort((a, b) => b.total.comparedTo(a.total) || a.nome.localeCompare(b.nome))
+    .map((c) => ({ ...c, total: c.total.toFixed(2) }));
+
+  return {
+    inicio,
+    fim,
+    receitas: receitas.toFixed(2),
+    despesas: despesas.toFixed(2),
+    resultado: receitas.minus(despesas).toFixed(2),
+    qtdReceitas,
+    qtdDespesas,
+    porCategoria,
+  };
 }
 
 export async function buscarTransacao(usuarioId: number, id: number) {
