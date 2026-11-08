@@ -1,23 +1,22 @@
+import type { Prisma } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
 
 type TipoCategoria = "RECEITA" | "DESPESA";
-
-// Usadas automaticamente pelas transferências: não podem ser criadas/renomeadas à mão
-export const CATEGORIAS_DO_SISTEMA = {
-  "Transferência enviada": "DESPESA",
-  "Transferência recebida": "RECEITA",
-} as const;
-
-function nomeReservado(nome: string) {
-  return Object.keys(CATEGORIAS_DO_SISTEMA).some(
-    (reservado) => reservado.toLowerCase() === nome.toLowerCase(),
-  );
-}
 
 type DadosCategoria = {
   nome: string;
   tipo: TipoCategoria;
 };
+
+// Categorias usadas pelas transferências. Ninguém pode criar ou renomear à mão
+function nomeReservado(nome: string) {
+  const nomeMinusculo = nome.toLowerCase();
+
+  return (
+    nomeMinusculo === "transferência enviada" ||
+    nomeMinusculo === "transferência recebida"
+  );
+}
 
 export async function cadastrarCategoria(dados: DadosCategoria) {
   const nomeLimpo = dados.nome.trim();
@@ -48,7 +47,11 @@ export async function listarCategoria(
 ) {
   const skip = (pagina - 1) * limite;
 
-  const where = tipo ? { tipo } : {};
+  const where: { tipo?: TipoCategoria } = {};
+
+  if (tipo) {
+    where.tipo = tipo;
+  }
 
   const categoria = await prisma.categoria.findMany({
     where,
@@ -85,7 +88,7 @@ export async function atualizarCategoria(id: number, dados: DadosCategoria) {
 
   const nomeLimpo = dados.nome.trim();
 
-  // Categorias do sistema não podem ser editadas, e nenhuma pode virar uma delas
+  // Categoria do sistema não pode ser editada, e nenhuma pode virar uma delas
   if (nomeReservado(existe.categoria.nome) || nomeReservado(nomeLimpo)) {
     return { erro: "NOME DE CATEGORIA RESERVADO PELO SISTEMA" } as const;
   }
@@ -98,7 +101,7 @@ export async function atualizarCategoria(id: number, dados: DadosCategoria) {
     return { erro: "CATEGORIA JÁ EXISTE" } as const;
   }
 
-  // Trocar o tipo de uma categoria em uso deixaria lançamentos inconsistentes
+  // Mudar o tipo de uma categoria já usada deixaria os lançamentos errados
   if (dados.tipo !== existe.categoria.tipo) {
     const emUso = await prisma.transacao.count({ where: { categoriaId: id } });
 
@@ -135,12 +138,12 @@ export async function deletarCategoria(id: number) {
   return { categoria };
 }
 
-/** Busca (ou cria) uma categoria do sistema, garantindo o tipo certo. */
+// Busca (ou cria) a categoria usada pelas transferências, sempre com o tipo certo
 export async function categoriaDoSistema(
-  tx: Pick<typeof prisma, "categoria" | "transacao">,
-  nome: keyof typeof CATEGORIAS_DO_SISTEMA,
+  tx: Prisma.TransactionClient,
+  nome: "Transferência enviada" | "Transferência recebida",
 ) {
-  const tipo = CATEGORIAS_DO_SISTEMA[nome];
+  const tipo = nome === "Transferência enviada" ? "DESPESA" : "RECEITA";
 
   const categoria = await tx.categoria.upsert({
     where: { nome },
@@ -152,7 +155,7 @@ export async function categoriaDoSistema(
     return categoria;
   }
 
-  // Base antiga com o nome reservado usado com outro tipo
+  // Banco antigo onde alguém usou esse nome com o outro tipo
   const emUso = await tx.transacao.count({
     where: { categoriaId: categoria.id },
   });

@@ -1,6 +1,5 @@
 import { Prisma } from "../../generated/prisma/client.js";
-import { prisma } from "../prisma.js";
-import { executarTransacao } from "../utils/transacao.js";
+import { executarTransacao, prisma } from "../prisma.js";
 
 type StatusContaReceber = "PENDENTE" | "PARCIALMENTE_RECEBIDA" | "RECEBIDA";
 
@@ -35,7 +34,7 @@ export async function cadastrarContaReceber(dados: DadosContaReceber) {
   return { contaReceber };
 }
 
-export async function listarContaReceber(filtros: FiltrosContaReceber = {}) {
+export async function listarContaReceber(filtros: FiltrosContaReceber) {
   const pagina = filtros.pagina ?? 1;
   const limite = filtros.limite ?? 10;
 
@@ -48,7 +47,10 @@ export async function listarContaReceber(filtros: FiltrosContaReceber = {}) {
   // Vencida = vencimento antes de hoje e ainda não recebida
   if (filtros.vencidas === true) {
     where.vencimento = { lt: inicioDeHoje() };
-    where.status = filtros.status ?? { not: "RECEBIDA" };
+
+    if (!filtros.status) {
+      where.status = { not: "RECEBIDA" };
+    }
   }
 
   if (filtros.vencidas === false) {
@@ -99,16 +101,18 @@ export async function atualizarContaReceber(
       return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
     }
 
-    // O total não pode ficar abaixo do que já foi recebido
+    // O total não pode ficar menor do que já foi recebido
     if (valorTotal.lt(existe.valorRecebido)) {
       return { erro: "VALOR TOTAL MENOR QUE O JÁ RECEBIDO" } as const;
     }
 
-    const status = existe.valorRecebido.lte(0)
-      ? "PENDENTE"
-      : existe.valorRecebido.eq(valorTotal)
-        ? "RECEBIDA"
-        : "PARCIALMENTE_RECEBIDA";
+    let status: StatusContaReceber = "PARCIALMENTE_RECEBIDA";
+
+    if (existe.valorRecebido.lte(0)) {
+      status = "PENDENTE";
+    } else if (existe.valorRecebido.eq(valorTotal)) {
+      status = "RECEBIDA";
+    }
 
     const contaReceber = await tx.contaReceber.update({
       where: { id },

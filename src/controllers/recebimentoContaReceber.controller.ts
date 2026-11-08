@@ -10,80 +10,121 @@ import {
   listarRecebimentos,
   listarRecebimentosPorContaReceber,
 } from "../services/recebimentoContaReceber.service.js";
-import { responderErro, validar } from "../utils/http.js";
 
 // POST /contaReceber/:id/recebimentos
 export async function cadastrar(req: Request, res: Response) {
-  const params = validar(res, idRecebimentoSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultadoId = idRecebimentoSchema.safeParse(req.params);
 
-  const dados = validar(res, recebimentoSchema, req.body, "DADOS INVÁLIDOS");
-  if (!dados) return;
-
-  const resultado = await cadastrarRecebimento({
-    contaReceberId: params.id,
-    ...dados,
-  });
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultadoId.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
+    });
     return;
   }
 
-  res.status(201).json(resultado);
+  const resultado = recebimentoSchema.safeParse(req.body);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const recebimento = await cadastrarRecebimento({
+    contaReceberId: resultadoId.data.id,
+    contaId: resultado.data.contaId,
+    categoriaId: resultado.data.categoriaId,
+    valor: resultado.data.valor,
+  });
+
+  if ("erro" in recebimento) {
+    // Conta a receber, conta bancária ou categoria não encontrada
+    const status = recebimento.erro.includes("NÃO ENCONTRADA") ? 404 : 409;
+    res.status(status).json({ erro: recebimento.erro });
+    return;
+  }
+
+  res.status(201).json(recebimento);
 }
 
 // GET /recebimentos
 export async function listar(req: Request, res: Response) {
-  const query = validar(
-    res,
-    paginacaoRecebimentoSchema,
-    req.query,
-    "PARÂMETROS INVÁLIDOS",
-  );
-  if (!query) return;
+  const resultado = paginacaoRecebimentoSchema.safeParse(req.query);
 
-  res.status(200).json(await listarRecebimentos(query.pagina, query.limite));
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const { pagina, limite } = resultado.data;
+
+  const recebimentos = await listarRecebimentos(pagina, limite);
+
+  res.status(200).json(recebimentos);
 }
 
 // GET /recebimentos/:id
 export async function buscar(req: Request, res: Response) {
-  const params = validar(res, idRecebimentoSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultado = idRecebimentoSchema.safeParse(req.params);
 
-  const resultado = await buscarRecebimento(params.id);
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
     return;
   }
 
-  res.status(200).json(resultado.recebimento);
+  const recebimento = await buscarRecebimento(resultado.data.id);
+
+  if ("erro" in recebimento) {
+    res.status(404).json({ erro: recebimento.erro });
+    return;
+  }
+
+  res.status(200).json(recebimento.recebimento);
 }
 
 // GET /contaReceber/:id/recebimentos
 export async function listarPorContaReceber(req: Request, res: Response) {
-  const params = validar(res, idRecebimentoSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultadoId = idRecebimentoSchema.safeParse(req.params);
 
-  const query = validar(
-    res,
-    paginacaoRecebimentoSchema,
-    req.query,
-    "PARÂMETROS INVÁLIDOS",
-  );
-  if (!query) return;
-
-  const resultado = await listarRecebimentosPorContaReceber(
-    params.id,
-    query.pagina,
-    query.limite,
-  );
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultadoId.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
+    });
     return;
   }
 
-  res.status(200).json(resultado);
+  const resultado = paginacaoRecebimentoSchema.safeParse(req.query);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const { pagina, limite } = resultado.data;
+
+  const recebimentos = await listarRecebimentosPorContaReceber(
+    resultadoId.data.id,
+    pagina,
+    limite,
+  );
+
+  if ("erro" in recebimentos) {
+    res.status(404).json({ erro: recebimentos.erro });
+    return;
+  }
+
+  res.status(200).json(recebimentos);
 }

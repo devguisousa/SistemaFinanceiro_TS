@@ -1,20 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { Prisma } from "../../generated/prisma/client.js";
-import { ehConflitoDeConcorrencia } from "../utils/transacao.js";
-
-// Erros lançados pelo express.json (body-parser)
-const ERROS_DO_BODY: Record<string, { status: number; erro: string }> = {
-  "entity.parse.failed": { status: 400, erro: "JSON INVÁLIDO" },
-  "entity.too.large": { status: 413, erro: "CORPO DA REQUISIÇÃO MUITO GRANDE" },
-  "charset.unsupported": { status: 415, erro: "CODIFICAÇÃO NÃO SUPORTADA" },
-  "encoding.unsupported": { status: 415, erro: "CODIFICAÇÃO NÃO SUPORTADA" },
-};
-
-const ERROS_DO_PRISMA: Record<string, { status: number; erro: string }> = {
-  P2002: { status: 409, erro: "REGISTRO JÁ EXISTENTE" },
-  P2003: { status: 409, erro: "OPERAÇÃO VIOLA UM RELACIONAMENTO DO BANCO" },
-  P2025: { status: 404, erro: "REGISTRO NECESSÁRIO NÃO ENCONTRADO" },
-};
+import { ehConflitoDeConcorrencia } from "../prisma.js";
 
 export function errorMiddleware(
   erro: unknown,
@@ -26,15 +12,23 @@ export function errorMiddleware(
     return next(erro);
   }
 
-  if (
-    erro instanceof Error &&
-    "type" in erro &&
-    typeof erro.type === "string"
-  ) {
-    const conhecido = ERROS_DO_BODY[erro.type];
+  // Erros do express.json
+  if (erro instanceof Error && "type" in erro) {
+    if (erro.type === "entity.parse.failed") {
+      res.status(400).json({ erro: "JSON INVÁLIDO" });
+      return;
+    }
 
-    if (conhecido) {
-      res.status(conhecido.status).json({ erro: conhecido.erro });
+    if (erro.type === "entity.too.large") {
+      res.status(413).json({ erro: "CORPO DA REQUISIÇÃO MUITO GRANDE" });
+      return;
+    }
+
+    if (
+      erro.type === "charset.unsupported" ||
+      erro.type === "encoding.unsupported"
+    ) {
+      res.status(415).json({ erro: "CODIFICAÇÃO NÃO SUPORTADA" });
       return;
     }
   }
@@ -45,20 +39,28 @@ export function errorMiddleware(
   }
 
   if (erro instanceof Prisma.PrismaClientKnownRequestError) {
-    const conhecido = ERROS_DO_PRISMA[erro.code];
+    if (erro.code === "P2002") {
+      res.status(409).json({ erro: "REGISTRO JÁ EXISTENTE" });
+      return;
+    }
 
-    if (conhecido) {
-      res.status(conhecido.status).json({ erro: conhecido.erro });
+    if (erro.code === "P2003") {
+      res.status(409).json({ erro: "OPERAÇÃO VIOLA UM RELACIONAMENTO DO BANCO" });
+      return;
+    }
+
+    if (erro.code === "P2025") {
+      res.status(404).json({ erro: "REGISTRO NECESSÁRIO NÃO ENCONTRADO" });
       return;
     }
   }
 
-  // Outros erros HTTP "seguros" (ex.: 4xx do body-parser não mapeados)
+  // Outros erros 4xx do express.json que não estão acima
   if (
     erro instanceof Error &&
     "expose" in erro &&
-    erro.expose === true &&
     "status" in erro &&
+    erro.expose === true &&
     typeof erro.status === "number" &&
     erro.status >= 400 &&
     erro.status < 500

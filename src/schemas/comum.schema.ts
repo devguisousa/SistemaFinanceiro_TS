@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 // Maior valor de uma coluna Int (INT4) do Postgres
-const INT4_MAX = 2_147_483_647;
+const INT4_MAX = 2147483647;
 
 const inteiroPositivoTexto = /^[1-9]\d*$/;
 
@@ -22,7 +22,7 @@ export const paginaSchema = z
   .string()
   .regex(inteiroPositivoTexto, "Página inválida")
   .transform(Number)
-  .pipe(z.int().positive().max(10_000, "Página máxima: 10000"));
+  .pipe(z.int().positive().max(10000, "Página máxima: 10000"));
 
 export const limiteSchema = z
   .string()

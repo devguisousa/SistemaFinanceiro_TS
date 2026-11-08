@@ -1,4 +1,4 @@
-# Sistema Financeiro — API
+# Sistema Financeiro API
 
 API REST de controle financeiro: contas, categorias, transações, transferências,
 contas a pagar/receber com pagamentos e recebimentos parciais, autenticação JWT
@@ -76,7 +76,7 @@ Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAd
 - A categoria tem tipo (`RECEITA`/`DESPESA`) e precisa bater com o lançamento.
 - Transações geradas por pagamento, recebimento ou transferência não podem ser editadas/apagadas diretamente.
 - Conta a pagar/receber não pode ter `valorTotal` menor que o já pago/recebido; o status é recalculado.
-- Operações concorrentes no mesmo registro são repetidas automaticamente (até 3x); se o conflito persistir, a resposta é `409`.
+- Operações concorrentes no mesmo registro são repetidas automaticamente (até 5 vezes); se o conflito persistir, a resposta é `409`.
 
 ## Erros
 

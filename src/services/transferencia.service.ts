@@ -1,11 +1,10 @@
 import { Prisma } from "../../generated/prisma/client.js";
-import { prisma } from "../prisma.js";
+import { executarTransacao, prisma } from "../prisma.js";
+import { categoriaDoSistema } from "./categoria.service.js";
 import {
   SaldoInsuficienteErro,
   garantirSaldoNaoNegativo,
-} from "../utils/saldo.js";
-import { executarTransacao } from "../utils/transacao.js";
-import { categoriaDoSistema } from "./categoria.service.js";
+} from "./saldo.service.js";
 
 type DadosTransferencia = {
   contaOrigemId: number;
@@ -14,33 +13,35 @@ type DadosTransferencia = {
   descricao: string;
 };
 
+// Junto com a transferência, devolve os dois lançamentos que ela gerou
 const incluirTransacoes = {
   transacoes: { select: { id: true, tipo: true, contaId: true } },
 } as const;
 
-/** Cria a transferência e os dois lançamentos (DESPESA na origem, RECEITA no destino). */
+// Cria a transferência e dois lançamentos: DESPESA na origem e RECEITA no destino
 export async function transferir(dados: DadosTransferencia) {
   const valor = new Prisma.Decimal(dados.valor);
 
   try {
     return await executarTransacao(async (tx) => {
-      const [origem, destino] = await Promise.all([
-        tx.conta.findUnique({ where: { id: dados.contaOrigemId } }),
-        tx.conta.findUnique({ where: { id: dados.contaDestinoId } }),
-      ]);
+      const origem = await tx.conta.findUnique({
+        where: { id: dados.contaOrigemId },
+      });
 
       if (!origem) {
         return { erro: "CONTA DE ORIGEM NÃO ENCONTRADA" } as const;
       }
 
+      const destino = await tx.conta.findUnique({
+        where: { id: dados.contaDestinoId },
+      });
+
       if (!destino) {
         return { erro: "CONTA DE DESTINO NÃO ENCONTRADA" } as const;
       }
 
-      const [saida, entrada] = await Promise.all([
-        categoriaDoSistema(tx, "Transferência enviada"),
-        categoriaDoSistema(tx, "Transferência recebida"),
-      ]);
+      const saida = await categoriaDoSistema(tx, "Transferência enviada");
+      const entrada = await categoriaDoSistema(tx, "Transferência recebida");
 
       const transferencia = await tx.transferencia.create({
         data: {
@@ -122,7 +123,7 @@ export async function buscarTransferencia(id: number) {
   return { transferencia };
 }
 
-/** Estorna: apaga a transferência e os dois lançamentos. */
+// Estorno: apaga a transferência e os dois lançamentos
 export async function estornarTransferencia(id: number) {
   try {
     return await executarTransacao(async (tx) => {
@@ -137,7 +138,7 @@ export async function estornarTransferencia(id: number) {
       await tx.transacao.deleteMany({ where: { transferenciaId: id } });
       await tx.transferencia.delete({ where: { id } });
 
-      // Tirar o dinheiro do destino não pode deixá-lo negativo
+      // Tirar o dinheiro do destino não pode deixar a conta negativa
       await garantirSaldoNaoNegativo(tx, [transferencia.contaDestinoId]);
 
       return { transferencia };

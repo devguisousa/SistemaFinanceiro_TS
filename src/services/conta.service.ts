@@ -1,10 +1,9 @@
-import { prisma } from "../prisma.js";
+import { executarTransacao, prisma } from "../prisma.js";
 import {
   SaldoInsuficienteErro,
   calcularSaldo,
   garantirSaldoNaoNegativo,
-} from "../utils/saldo.js";
-import { executarTransacao } from "../utils/transacao.js";
+} from "./saldo.service.js";
 
 export async function cadastrarConta(nome: string, saldoInicial: string) {
   const conta = await prisma.conta.create({
@@ -34,9 +33,11 @@ export async function listarContas(pagina = 1, limite = 10) {
 }
 
 export async function buscarContas(id: number) {
-  return prisma.conta.findUnique({
+  const conta = await prisma.conta.findUnique({
     where: { id },
   });
+
+  return conta;
 }
 
 export async function atualizarConta(
@@ -78,12 +79,11 @@ export async function deletarConta(id: number) {
     return { erro: "CONTA NÃO ENCONTRADA" } as const;
   }
 
-  const [transacoes, transferencias] = await Promise.all([
-    prisma.transacao.count({ where: { contaId: id } }),
-    prisma.transferencia.count({
-      where: { OR: [{ contaOrigemId: id }, { contaDestinoId: id }] },
-    }),
-  ]);
+  const transacoes = await prisma.transacao.count({ where: { contaId: id } });
+
+  const transferencias = await prisma.transferencia.count({
+    where: { OR: [{ contaOrigemId: id }, { contaDestinoId: id }] },
+  });
 
   if (transacoes > 0 || transferencias > 0) {
     return { erro: "CONTA POSSUI MOVIMENTAÇÕES" } as const;

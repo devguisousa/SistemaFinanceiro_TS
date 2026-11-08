@@ -1,12 +1,15 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
-import type { Prisma } from "../../../generated/prisma/client.js";
-import { env } from "../../config/env.js";
-import { prisma } from "../../prisma.js";
+import type { Prisma } from "../../generated/prisma/client.js";
+import { env } from "../env.js";
+import { prisma } from "../prisma.js";
 
-const SETE_DIAS_MS = 7 * 24 * 60 * 60 * 1000;
+const SETE_DIAS = 7 * 24 * 60 * 60 * 1000;
 
-type UsuarioToken = { id: number; tokenVersao: number };
+type UsuarioToken = {
+  id: number;
+  tokenVersao: number;
+};
 
 export function gerarAccessToken(usuario: UsuarioToken) {
   return jwt.sign(
@@ -16,27 +19,32 @@ export function gerarAccessToken(usuario: UsuarioToken) {
   );
 }
 
-// Retorna id e versão do token, ou null se for inválido/expirado
+// Devolve o id e a versão do token, ou null se ele for inválido ou expirado
 export function verificarAccessToken(token: string): UsuarioToken | null {
   try {
     const payload = jwt.verify(token, env.JWT_SEGREDO, {
       algorithms: ["HS256"],
     });
 
-    if (
-      typeof payload !== "object" ||
-      !/^[1-9]\d*$/.test(payload.sub ?? "") ||
-      !Number.isInteger(payload.ver)
-    ) {
+    if (typeof payload !== "object") {
       return null;
     }
 
-    return { id: Number(payload.sub), tokenVersao: payload.ver as number };
+    if (!/^[1-9]\d*$/.test(payload.sub ?? "")) {
+      return null;
+    }
+
+    if (!Number.isInteger(payload.ver)) {
+      return null;
+    }
+
+    return { id: Number(payload.sub), tokenVersao: payload.ver };
   } catch {
     return null;
   }
 }
 
+// No banco fica só o hash do refresh token, nunca o token
 export function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -51,14 +59,14 @@ export async function gerarRefreshToken(
     data: {
       hash: hashToken(token),
       usuarioId,
-      expiraEm: new Date(Date.now() + SETE_DIAS_MS),
+      expiraEm: new Date(Date.now() + SETE_DIAS),
     },
   });
 
   return token;
 }
 
-// Remove tokens vencidos do usuário para não acumular no banco
+// Apaga os tokens vencidos do usuário para não acumular no banco
 export async function limparTokensExpirados(
   usuarioId: number,
   db: Prisma.TransactionClient = prisma,
@@ -68,7 +76,7 @@ export async function limparTokensExpirados(
   });
 }
 
-/** Invalida todas as sessões: access tokens (pela versão) e refresh tokens. */
+// Derruba todas as sessões: os access tokens (pela versão) e os refresh tokens
 export async function revogarSessoes(
   usuarioId: number,
   db: Prisma.TransactionClient = prisma,
@@ -81,14 +89,7 @@ export async function revogarSessoes(
   await db.refreshToken.deleteMany({ where: { usuarioId } });
 }
 
-type ResultadoRefresh =
-  | { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" | "REFRESH TOKEN REUTILIZADO" }
-  | { accessToken: string; refreshToken: string };
-
-  
-export async function trocarRefreshToken(
-  refreshToken: string,
-): Promise<ResultadoRefresh> {
+export async function trocarRefreshToken(refreshToken: string) {
   return prisma.$transaction(async (tx) => {
     const registro = await tx.refreshToken.findUnique({
       where: { hash: hashToken(refreshToken) },
@@ -99,6 +100,7 @@ export async function trocarRefreshToken(
       return { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" } as const;
     }
 
+    // Token já usado sendo usado de novo: pode ter sido roubado, derruba tudo
     if (registro.usado) {
       await revogarSessoes(registro.usuarioId, tx);
 
@@ -109,8 +111,8 @@ export async function trocarRefreshToken(
       return { erro: "REFRESH TOKEN INVÁLIDO OU EXPIRADO" } as const;
     }
 
-    // updateMany com "usado: false" garante que só uma requisição
-    // concorrente consegue usar o mesmo token
+    // O "usado: false" no where garante que só uma requisição ao mesmo
+    // tempo consegue usar o token
     const marcado = await tx.refreshToken.updateMany({
       where: { id: registro.id, usado: false },
       data: { usado: true, usadoEm: new Date() },

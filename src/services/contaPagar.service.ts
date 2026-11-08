@@ -1,6 +1,5 @@
 import { Prisma } from "../../generated/prisma/client.js";
-import { prisma } from "../prisma.js";
-import { executarTransacao } from "../utils/transacao.js";
+import { executarTransacao, prisma } from "../prisma.js";
 
 type StatusContaPagar = "PENDENTE" | "PARCIALMENTE_PAGA" | "PAGA";
 
@@ -35,7 +34,7 @@ export async function cadastrarContaPagar(dados: DadosContaPagar) {
   return { contaPagar };
 }
 
-export async function listarContaPagar(filtros: FiltrosContaPagar = {}) {
+export async function listarContaPagar(filtros: FiltrosContaPagar) {
   const pagina = filtros.pagina ?? 1;
   const limite = filtros.limite ?? 10;
 
@@ -48,7 +47,10 @@ export async function listarContaPagar(filtros: FiltrosContaPagar = {}) {
   // Vencida = vencimento antes de hoje e ainda não paga
   if (filtros.vencidas === true) {
     where.vencimento = { lt: inicioDeHoje() };
-    where.status = filtros.status ?? { not: "PAGA" };
+
+    if (!filtros.status) {
+      where.status = { not: "PAGA" };
+    }
   }
 
   if (filtros.vencidas === false) {
@@ -93,16 +95,18 @@ export async function atualizarContaPagar(id: number, dados: DadosContaPagar) {
       return { erro: "CONTA A PAGAR NÃO ENCONTRADA" } as const;
     }
 
-    // O total não pode ficar abaixo do que já foi pago
+    // O total não pode ficar menor do que já foi pago
     if (valorTotal.lt(existe.valorPago)) {
       return { erro: "VALOR TOTAL MENOR QUE O JÁ PAGO" } as const;
     }
 
-    const status = existe.valorPago.lte(0)
-      ? "PENDENTE"
-      : existe.valorPago.eq(valorTotal)
-        ? "PAGA"
-        : "PARCIALMENTE_PAGA";
+    let status: StatusContaPagar = "PARCIALMENTE_PAGA";
+
+    if (existe.valorPago.lte(0)) {
+      status = "PENDENTE";
+    } else if (existe.valorPago.eq(valorTotal)) {
+      status = "PAGA";
+    }
 
     const contaPagar = await tx.contaPagar.update({
       where: { id },

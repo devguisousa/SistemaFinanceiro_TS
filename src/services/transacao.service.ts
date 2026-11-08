@@ -1,9 +1,9 @@
-import { prisma } from "../prisma.js";
+import type { Prisma, Transacao } from "../../generated/prisma/client.js";
+import { executarTransacao, prisma } from "../prisma.js";
 import {
   SaldoInsuficienteErro,
   garantirSaldoNaoNegativo,
-} from "../utils/saldo.js";
-import { executarTransacao } from "../utils/transacao.js";
+} from "./saldo.service.js";
 
 type TipoTransacao = "RECEITA" | "DESPESA";
 
@@ -24,12 +24,9 @@ type FiltrosTransacao = {
   limite: number;
 };
 
-export const ERRO_VINCULADA =
-  "TRANSAÇÃO VINCULADA A PAGAMENTO, RECEBIMENTO OU TRANSFERÊNCIA";
-
-// Conta, categoria e tipo da categoria precisam bater com a transação
-async function validarReferencias(
-  tx: Parameters<Parameters<typeof executarTransacao>[0]>[0],
+// Conta e categoria precisam existir e a categoria tem que ser do mesmo tipo
+async function validarContaECategoria(
+  tx: Prisma.TransactionClient,
   dados: DadosTransacao,
 ) {
   const conta = await tx.conta.findUnique({ where: { id: dados.contaId } });
@@ -53,10 +50,20 @@ async function validarReferencias(
   return null;
 }
 
+// Transação gerada por pagamento, recebimento ou transferência não pode ser
+// editada nem apagada direto
+function estaVinculada(transacao: Transacao) {
+  return (
+    transacao.pagamentoContaPagarId !== null ||
+    transacao.recebimentoId !== null ||
+    transacao.transferenciaId !== null
+  );
+}
+
 export async function cadastrarTransacao(dados: DadosTransacao) {
   try {
     return await executarTransacao(async (tx) => {
-      const invalido = await validarReferencias(tx, dados);
+      const invalido = await validarContaECategoria(tx, dados);
 
       if (invalido) {
         return invalido;
@@ -69,7 +76,8 @@ export async function cadastrarTransacao(dados: DadosTransacao) {
           tipo: dados.tipo,
           contaId: dados.contaId,
           categoriaId: dados.categoriaId,
-          ...(dados.data && { data: dados.data }),
+          // Sem data, usa o momento atual
+          data: dados.data ?? new Date(),
         },
       });
 
@@ -87,26 +95,26 @@ export async function cadastrarTransacao(dados: DadosTransacao) {
 }
 
 export async function listarTransacoes(filtros: FiltrosTransacao) {
-  const { tipo, contaId, categoriaId, pagina, limite } = filtros;
-
   const where: {
     tipo?: TipoTransacao;
     contaId?: number;
     categoriaId?: number;
   } = {};
 
-  if (tipo) {
-    where.tipo = tipo;
+  if (filtros.tipo) {
+    where.tipo = filtros.tipo;
   }
 
-  if (contaId !== undefined) {
-    where.contaId = contaId;
+  if (filtros.contaId !== undefined) {
+    where.contaId = filtros.contaId;
   }
 
-  if (categoriaId !== undefined) {
-    where.categoriaId = categoriaId;
+  if (filtros.categoriaId !== undefined) {
+    where.categoriaId = filtros.categoriaId;
   }
 
+  const pagina = filtros.pagina;
+  const limite = filtros.limite;
   const skip = (pagina - 1) * limite;
 
   const transacao = await prisma.transacao.findMany({
@@ -139,18 +147,6 @@ export async function buscarTransacao(id: number) {
   return { transacao };
 }
 
-function estaVinculada(transacao: {
-  pagamentoContaPagarId: number | null;
-  recebimentoId: number | null;
-  transferenciaId: number | null;
-}) {
-  return (
-    transacao.pagamentoContaPagarId !== null ||
-    transacao.recebimentoId !== null ||
-    transacao.transferenciaId !== null
-  );
-}
-
 export async function atualizarTransacao(dados: DadosTransacao, id: number) {
   try {
     return await executarTransacao(async (tx) => {
@@ -161,10 +157,12 @@ export async function atualizarTransacao(dados: DadosTransacao, id: number) {
       }
 
       if (estaVinculada(existe)) {
-        return { erro: ERRO_VINCULADA } as const;
+        return {
+          erro: "TRANSAÇÃO VINCULADA A PAGAMENTO, RECEBIMENTO OU TRANSFERÊNCIA",
+        } as const;
       }
 
-      const invalido = await validarReferencias(tx, dados);
+      const invalido = await validarContaECategoria(tx, dados);
 
       if (invalido) {
         return invalido;
@@ -178,7 +176,8 @@ export async function atualizarTransacao(dados: DadosTransacao, id: number) {
           tipo: dados.tipo,
           contaId: dados.contaId,
           categoriaId: dados.categoriaId,
-          ...(dados.data && { data: dados.data }),
+          // Sem data, mantém a que já estava
+          data: dados.data ?? existe.data,
         },
       });
 
@@ -206,7 +205,9 @@ export async function deletarTransacao(id: number) {
       }
 
       if (estaVinculada(existe)) {
-        return { erro: ERRO_VINCULADA } as const;
+        return {
+          erro: "TRANSAÇÃO VINCULADA A PAGAMENTO, RECEBIMENTO OU TRANSFERÊNCIA",
+        } as const;
       }
 
       const transacao = await tx.transacao.delete({ where: { id } });

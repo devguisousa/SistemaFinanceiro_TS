@@ -13,39 +13,59 @@ import {
   deletarConta,
   listarContas,
 } from "../services/conta.service.js";
-import { responderErro, validar } from "../utils/http.js";
 
 export async function cadastrar(req: Request, res: Response) {
-  const dados = validar(res, cadastrarContaSchema, req.body, "DADOS INVÁLIDOS");
-  if (!dados) return;
+  const resultado = cadastrarContaSchema.safeParse(req.body);
 
-  const conta = await cadastrarConta(dados.nome, dados.saldoInicial);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const { nome, saldoInicial } = resultado.data;
+
+  const conta = await cadastrarConta(nome, saldoInicial);
 
   res.status(201).json(conta);
 }
 
 export async function listar(req: Request, res: Response) {
-  const query = validar(
-    res,
-    paginacaoContaSchema,
-    req.query,
-    "PARÂMETROS INVÁLIDOS",
-  );
-  if (!query) return;
+  const resultado = paginacaoContaSchema.safeParse(req.query);
 
-  const contas = await listarContas(query.page ?? 1, query.limit ?? 10);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const pagina = resultado.data.page ?? 1;
+  const limite = resultado.data.limit ?? 10;
+
+  const contas = await listarContas(pagina, limite);
 
   res.status(200).json(contas);
 }
 
 export async function buscar(req: Request, res: Response) {
-  const id = validar(res, idContaSchema, req.params.id, "ID INVÁLIDO");
-  if (id === null) return;
+  const resultado = idContaSchema.safeParse(req.params.id);
 
-  const conta = await buscarContas(id);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const conta = await buscarContas(resultado.data);
 
   if (!conta) {
-    responderErro(res, "CONTA NÃO ENCONTRADA");
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 
@@ -53,30 +73,55 @@ export async function buscar(req: Request, res: Response) {
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const id = validar(res, idContaSchema, req.params.id, "ID INVÁLIDO");
-  if (id === null) return;
+  const resultadoId = idContaSchema.safeParse(req.params.id);
 
-  const dados = validar(res, atualizarContaSchema, req.body, "DADOS INVÁLIDOS");
-  if (!dados) return;
-
-  const resultado = await atualizarConta(id, dados.nome, dados.saldoInicial);
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultadoId.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
+    });
     return;
   }
 
-  res.status(200).json(resultado.conta);
+  const resultado = atualizarContaSchema.safeParse(req.body);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const { nome, saldoInicial } = resultado.data;
+
+  const conta = await atualizarConta(resultadoId.data, nome, saldoInicial);
+
+  if ("erro" in conta) {
+    const status = conta.erro === "CONTA NÃO ENCONTRADA" ? 404 : 409;
+    res.status(status).json({ erro: conta.erro });
+    return;
+  }
+
+  res.status(200).json(conta.conta);
 }
 
 export async function deletar(req: Request, res: Response) {
-  const id = validar(res, idContaSchema, req.params.id, "ID INVÁLIDO");
-  if (id === null) return;
+  const resultado = idContaSchema.safeParse(req.params.id);
 
-  const resultado = await deletarConta(id);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
 
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  const deletado = await deletarConta(resultado.data);
+
+  if ("erro" in deletado) {
+    const status = deletado.erro === "CONTA NÃO ENCONTRADA" ? 404 : 409;
+    res.status(status).json({ erro: deletado.erro });
     return;
   }
 
@@ -84,13 +129,20 @@ export async function deletar(req: Request, res: Response) {
 }
 
 export async function buscarSaldo(req: Request, res: Response) {
-  const id = validar(res, idContaSchema, req.params.id, "ID INVÁLIDO");
-  if (id === null) return;
+  const resultado = idContaSchema.safeParse(req.params.id);
 
-  const saldo = await buscarSaldoAtual(id);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const saldo = await buscarSaldoAtual(resultado.data);
 
   if (!saldo) {
-    responderErro(res, "CONTA NÃO ENCONTRADA");
+    res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
     return;
   }
 

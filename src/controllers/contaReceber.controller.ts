@@ -11,70 +11,113 @@ import {
   deletarContaReceber,
   listarContaReceber,
 } from "../services/contaReceber.service.js";
-import { responderErro, validar } from "../utils/http.js";
 
 export async function cadastrar(req: Request, res: Response) {
-  const dados = validar(res, contaReceberSchema, req.body, "DADOS INVÁLIDOS");
-  if (!dados) return;
+  const resultado = contaReceberSchema.safeParse(req.body);
 
-  const resultado = await cadastrarContaReceber(dados);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
 
-  res.status(201).json(resultado.contaReceber);
+  const contaReceber = await cadastrarContaReceber(resultado.data);
+
+  res.status(201).json(contaReceber.contaReceber);
 }
 
 export async function listar(req: Request, res: Response) {
-  const query = validar(
-    res,
-    paginacaoContaReceberSchema,
-    req.query,
-    "PARÂMETROS INVÁLIDOS",
-  );
-  if (!query) return;
+  const resultado = paginacaoContaReceberSchema.safeParse(req.query);
 
-  const contasReceber = await listarContaReceber(query);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "PARÂMETROS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const contasReceber = await listarContaReceber(resultado.data);
 
   res.status(200).json(contasReceber);
 }
 
 export async function buscar(req: Request, res: Response) {
-  const params = validar(res, idContaReceberSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultado = idContaReceberSchema.safeParse(req.params);
 
-  const resultado = await buscarContaReceber(params.id);
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
     return;
   }
 
-  res.status(200).json(resultado.contaReceber);
+  const contaReceber = await buscarContaReceber(resultado.data.id);
+
+  if ("erro" in contaReceber) {
+    res.status(404).json({ erro: contaReceber.erro });
+    return;
+  }
+
+  res.status(200).json(contaReceber.contaReceber);
 }
 
 export async function atualizar(req: Request, res: Response) {
-  const params = validar(res, idContaReceberSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultadoId = idContaReceberSchema.safeParse(req.params);
 
-  const dados = validar(res, contaReceberSchema, req.body, "DADOS INVÁLIDOS");
-  if (!dados) return;
-
-  const resultado = await atualizarContaReceber(params.id, dados);
-
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  if (!resultadoId.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultadoId.error.issues,
+    });
     return;
   }
 
-  res.status(200).json(resultado.contaReceber);
+  const resultado = contaReceberSchema.safeParse(req.body);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const contaReceber = await atualizarContaReceber(
+    resultadoId.data.id,
+    resultado.data,
+  );
+
+  if ("erro" in contaReceber) {
+    const status =
+      contaReceber.erro === "CONTA A RECEBER NÃO ENCONTRADA" ? 404 : 409;
+    res.status(status).json({ erro: contaReceber.erro });
+    return;
+  }
+
+  res.status(200).json(contaReceber.contaReceber);
 }
 
 export async function deletar(req: Request, res: Response) {
-  const params = validar(res, idContaReceberSchema, req.params, "ID INVÁLIDO");
-  if (!params) return;
+  const resultado = idContaReceberSchema.safeParse(req.params);
 
-  const resultado = await deletarContaReceber(params.id);
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
 
-  if ("erro" in resultado) {
-    responderErro(res, resultado.erro);
+  const deletado = await deletarContaReceber(resultado.data.id);
+
+  if ("erro" in deletado) {
+    const status =
+      deletado.erro === "CONTA A RECEBER NÃO ENCONTRADA" ? 404 : 409;
+    res.status(status).json({ erro: deletado.erro });
     return;
   }
 

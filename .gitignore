@@ -9,3 +9,5 @@ dist
 # Arquivos de skills de agentes de IA (locais, não fazem parte do projeto)
 .agents/
 skills-lock.json
+.claude/skills/
+.windsurf/

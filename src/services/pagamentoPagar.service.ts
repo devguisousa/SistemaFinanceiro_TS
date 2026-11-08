@@ -1,11 +1,10 @@
 import { Prisma } from "../../generated/prisma/client.js";
-import { prisma } from "../prisma.js";
+import { executarTransacao, prisma } from "../prisma.js";
+import { buscarContaPagar } from "./contaPagar.service.js";
 import {
   SaldoInsuficienteErro,
   garantirSaldoNaoNegativo,
-} from "../utils/saldo.js";
-import { executarTransacao } from "../utils/transacao.js";
-import { buscarContaPagar } from "./contaPagar.service.js";
+} from "./saldo.service.js";
 
 type DadosPagamento = {
   contaPagarId: number;
@@ -139,7 +138,7 @@ export async function listarPagamentoContaPagar(
   const contaPagar = await buscarContaPagar(id);
 
   if ("erro" in contaPagar) {
-    return { erro: contaPagar.erro };
+    return contaPagar;
   }
 
   const skip = (pagina - 1) * limite;

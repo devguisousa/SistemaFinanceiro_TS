@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { somenteAdmin } from "../autenticacao/middlewares/exigirPapel.js";
+import { somenteAdmin } from "../middleware/somenteAdmin.middleware.js";
 import {
   buscar,
   cadastrar,
@@ -15,5 +15,5 @@ transferenciaRoutes.get("/:id", buscar);
 // Lançamento: qualquer usuário logado
 transferenciaRoutes.post("/", cadastrar);
 
-// Estorno: somente ADMIN
+// Somente ADMIN (estorno)
 transferenciaRoutes.delete("/:id", somenteAdmin, estornar);

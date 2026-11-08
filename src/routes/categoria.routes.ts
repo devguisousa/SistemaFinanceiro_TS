@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { somenteAdmin } from "../autenticacao/middlewares/exigirPapel.js";
+import { somenteAdmin } from "../middleware/somenteAdmin.middleware.js";
 import {
   atualizar,
   buscar,

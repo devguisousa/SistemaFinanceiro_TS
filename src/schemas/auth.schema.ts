@@ -3,7 +3,7 @@ import {
   idTextoSchema,
   limiteSchema,
   paginaSchema,
-} from "../../schemas/comum.schema.js";
+} from "./comum.schema.js";
 
 // E-mail salvo sempre sem espaços e em minúsculas (máx. 254, padrão RFC)
 const emailSchema = z

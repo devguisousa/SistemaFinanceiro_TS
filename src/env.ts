@@ -1,7 +1,9 @@
 import "dotenv/config";
 import { z } from "zod";
 
-// Valida as variáveis de ambiente uma vez, ao subir o servidor
+// Mensagens do zod em português no projeto todo
+z.config(z.locales.pt());
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -22,14 +24,18 @@ const envSchema = z.object({
   CORS_ORIGENS: z
     .string()
     .optional()
-    .transform((valor) =>
-      (valor ?? "")
+    .transform((valor) => {
+      if (!valor) {
+        return [];
+      }
+
+      return valor
         .split(",")
         .map((origem) => origem.trim())
-        .filter(Boolean),
-    ),
+        .filter((origem) => origem !== "");
+    }),
 
-  // Atrás de proxy (Nginx, Render...): número de proxies. Vazio = desligado
+  // Quantos proxies tem na frente da API (Nginx, Render...). 0 = nenhum
   TRUST_PROXY: z.coerce.number().int().min(0).default(0),
 
   LOG_LEVEL: z
@@ -40,11 +46,13 @@ const envSchema = z.object({
 const resultado = envSchema.safeParse(process.env);
 
 if (!resultado.success) {
-  const erros = resultado.error.issues
-    .map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`)
-    .join("\n");
+  let mensagem = "Variáveis de ambiente inválidas:";
 
-  throw new Error(`Variáveis de ambiente inválidas:\n${erros}`);
+  for (const issue of resultado.error.issues) {
+    mensagem += `\n  - ${issue.path.join(".")}: ${issue.message}`;
+  }
+
+  throw new Error(mensagem);
 }
 
 export const env = resultado.data;
