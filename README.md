@@ -2,7 +2,12 @@
 
 API REST de controle financeiro: contas, categorias, transações, transferências,
 contas a pagar/receber com pagamentos e recebimentos parciais, autenticação JWT
-e papéis (ADMIN / USUARIO).
+e papéis (ADMIN / USUARIO). **Cada usuário tem os próprios dados**: contas,
+categorias, contas a pagar/receber e tudo que nasce delas são separados por
+usuário, e o cadastro é aberto.
+
+Em produção: API na Vercel e banco Neon (PostgreSQL) em São Paulo. O front-end
+está em outro repositório: [front-sistema-financeiro](https://github.com/devguisousa/front-sistema-financeiro).
 
 **Stack:** Node 22+, Express 5, TypeScript, Prisma 7 (PostgreSQL), Zod 4, Vitest.
 
@@ -32,18 +37,19 @@ Produção: `npm run build && npm start`.
 ## Autenticação
 
 1. `POST /auth/login` `{ email, senha }` → `{ accessToken, refreshToken }`
-2. Envie `Authorization: Bearer <accessToken>` em todas as rotas (exceto `/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/status`, `/auth/primeiro-admin` e `/health`).
+2. Envie `Authorization: Bearer <accessToken>` em todas as rotas (exceto `/auth/login`, `/auth/cadastro`, `/auth/refresh`, `/auth/logout`, `/auth/status`, `/auth/primeiro-admin` e `/health`).
 3. O access token dura 15 min. Renove com `POST /auth/refresh` `{ refreshToken }` (o refresh muda a cada troca; reutilizar um antigo derruba todas as sessões).
 
 | Rota | Quem |
 |---|---|
+| `POST /auth/cadastro` `{ email, senha }` → `201 { accessToken, refreshToken }` | público: cria um `USUARIO` com dados próprios (`409` se o e-mail já existe) |
 | `GET /auth/status` → `{ precisaAdmin }` | público |
 | `POST /auth/primeiro-admin` `{ email, senha }` → `{ accessToken, refreshToken }` | público, só enquanto não existe ADMIN (senão `409`) |
 | `GET /auth/me` | logado |
 | `PUT /auth/senha` `{ senhaAtual, novaSenha }` | logado (derruba todas as sessões) |
 | `POST /auth/sair-de-todos` | logado |
-| `POST /auth/registrar` `{ email, senha, papel? }` | ADMIN |
-| `GET/PATCH/DELETE /usuarios…` | ADMIN |
+| `POST /auth/registrar` `{ email, senha, papel? }` | ADMIN (cria usuário com o papel escolhido) |
+| `GET/PATCH /usuarios…`, `DELETE /usuarios/:id` | ADMIN (apagar um usuário apaga também todos os dados dele) |
 
 ### Primeiro acesso
 
@@ -51,10 +57,12 @@ Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAd
 
 **Risco:** enquanto não há ADMIN, quem acessar o site primeiro vira ADMIN. Em produção, crie o admin logo após o deploy (pelo site ou com `npm run criar-admin`).
 
-## Permissões
+## Permissões e dados por usuário
 
-- **USUARIO:** todos os `GET` + lançamentos: `POST /transacao`, `POST /transferencias`, `POST /pagamentoPagar/contaPagar/:id`, `POST /contaReceber/:id/recebimentos`.
-- **ADMIN:** tudo, inclusive criar/editar/apagar contas, categorias, contas a pagar/receber, editar/apagar transações e estornar transferências.
+- Todo usuário logado (`USUARIO` ou `ADMIN`) usa todas as rotas financeiras, mas **só enxerga e altera os próprios dados**. Acessar o registro de outro usuário responde `404`.
+- `Conta`, `Categoria`, `ContaPagar` e `ContaReceber` guardam o `usuarioId`; transações, transferências, pagamentos e recebimentos são filtrados pela relação com elas. Não dá para lançar numa conta ou categoria de outra pessoa.
+- **ADMIN** a mais: gerenciar usuários (`/usuarios`, `/auth/registrar`).
+- O sistema nunca fica sem ADMIN (não dá para rebaixar ou apagar o último).
 
 ## Rotas principais
 
@@ -77,6 +85,13 @@ Enquanto o banco não tem nenhum ADMIN, `GET /auth/status` devolve `{ "precisaAd
 - Transações geradas por pagamento, recebimento ou transferência não podem ser editadas/apagadas diretamente.
 - Conta a pagar/receber não pode ter `valorTotal` menor que o já pago/recebido; o status é recalculado.
 - Operações concorrentes no mesmo registro são repetidas automaticamente (até 5 vezes); se o conflito persistir, a resposta é `409`.
+
+## Deploy (Vercel + Neon)
+
+- `vercel.json` fixa `"framework": "express"` e a região `gru1`. O push na `main` publica sozinho.
+- Variáveis de produção: `DATABASE_URL` (injetada pela integração Neon), `JWT_SEGREDO`, `TRUST_PROXY=1` e `CORS_ORIGENS` com a URL do front. Não defina `NODE_ENV`: o build precisa das devDependencies (prisma e typescript).
+- Migrations não rodam no deploy. Aplique à mão com a URL **sem pooler** do Neon: `DATABASE_URL=<url-sem-pooler> npx prisma migrate deploy`.
+- O `req.usuario` é declarado em `src/middleware/autenticar.middleware.ts` (e não em um `.d.ts` solto) porque o builder da Vercel só checa os arquivos importados pelo `src/app.ts`.
 
 ## Erros
 
