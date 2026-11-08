@@ -170,3 +170,34 @@ export async function listarPagamentoContaPagar(
 
   return { pagamentoContaPagar, pagina, limite, total, totalPagina };
 }
+
+// Desfaz um pagamento: apaga a transação que ele gerou (o dinheiro volta
+// para a conta) e devolve o valor e o status da conta a pagar
+export async function apagarPagamento(usuarioId: number, id: number) {
+  return executarTransacao(async (tx) => {
+    const pagamento = await tx.pagamentoContaPagar.findFirst({
+      where: { id, contaPagar: { usuarioId } },
+      include: { contaPagar: true },
+    });
+
+    if (!pagamento) {
+      return { erro: "PAGAMENTO NÃO ENCONTRADO" } as const;
+    }
+
+    await tx.transacao.deleteMany({ where: { pagamentoContaPagarId: id } });
+
+    await tx.pagamentoContaPagar.delete({ where: { id } });
+
+    const novoValorPago = pagamento.contaPagar.valorPago.minus(pagamento.valor);
+
+    const contaPagar = await tx.contaPagar.update({
+      where: { id: pagamento.contaPagarId },
+      data: {
+        valorPago: novoValorPago,
+        status: novoValorPago.gt(0) ? "PARCIALMENTE_PAGA" : "PENDENTE",
+      },
+    });
+
+    return { contaPagar };
+  });
+}

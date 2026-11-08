@@ -74,15 +74,15 @@ describe("Saldo nunca negativo", () => {
     expect(editar.status).toBe(409);
   });
 
-  it("bloqueia baixar o saldo inicial abaixo do já gasto", async () => {
+  it("saldo digitado na edição vale mesmo abaixo do que já foi gasto", async () => {
     await lancar("DESPESA", "80");
 
     const res = await api()
       .put(`/contas/${contaId}`)
-      .send({ nome: "Principal", saldoInicial: "50" });
+      .send({ nome: "Principal", saldoAtual: "50" });
 
-    expect(res.status).toBe(409);
-    expect(res.body).toEqual({ erro: "SALDO INSUFICIENTE" });
+    expect(res.status).toBe(200);
+    expect(await saldo()).toBe("50.00");
   });
 });
 

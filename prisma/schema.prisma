@@ -14,6 +14,12 @@ model Conta {
   saldoInicial Decimal  @default(0) @db.Decimal(12, 2)
   criadoEm     DateTime @default(now())
 
+  // Quando o usuário digita o saldo na edição, saldoInicial vira esse valor e
+  // só entram no saldo as transações com id maior que transacaoCorteId
+  // (lançadas depois). Sem edição: corte 0, todas as transações contam
+  saldoDefinidoEm  DateTime?
+  transacaoCorteId Int       @default(0)
+
   // Dono da conta: cada usuário só vê e altera os próprios dados
   usuarioId Int
   usuario   Usuario @relation(fields: [usuarioId], references: [id])

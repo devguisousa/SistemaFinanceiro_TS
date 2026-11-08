@@ -1,6 +1,10 @@
 import { Prisma } from "../../generated/prisma/client.js";
 import { executarTransacao, prisma } from "../prisma.js";
 import { buscarContaReceber } from "./contaReceber.service.js";
+import {
+  SaldoInsuficienteErro,
+  garantirSaldoNaoNegativo,
+} from "./saldo.service.js";
 
 type DadosRecebimento = {
   contaReceberId: number;
@@ -157,4 +161,48 @@ export async function listarRecebimentosPorContaReceber(
   const totalPagina = Math.ceil(total / limite);
 
   return { recebimentos, pagina, limite, total, totalPagina };
+}
+
+// Desfaz um recebimento: apaga a transação que ele gerou (o dinheiro sai da
+// conta) e devolve o valor e o status da conta a receber
+export async function apagarRecebimento(usuarioId: number, id: number) {
+  try {
+    return await executarTransacao(async (tx) => {
+      const recebimento = await tx.recebimentoContaReceber.findFirst({
+        where: { id, contaReceber: { usuarioId } },
+        include: { contaReceber: true },
+      });
+
+      if (!recebimento) {
+        return { erro: "RECEBIMENTO NÃO ENCONTRADO" } as const;
+      }
+
+      await tx.transacao.deleteMany({ where: { recebimentoId: id } });
+
+      await tx.recebimentoContaReceber.delete({ where: { id } });
+
+      const novoValorRecebido = recebimento.contaReceber.valorRecebido.minus(
+        recebimento.valor,
+      );
+
+      const contaReceber = await tx.contaReceber.update({
+        where: { id: recebimento.contaReceberId },
+        data: {
+          valorRecebido: novoValorRecebido,
+          status: novoValorRecebido.gt(0) ? "PARCIALMENTE_RECEBIDA" : "PENDENTE",
+        },
+      });
+
+      // Se o dinheiro já foi gasto, tirar o recebimento deixaria a conta negativa
+      await garantirSaldoNaoNegativo(tx, [recebimento.contaId]);
+
+      return { contaReceber };
+    });
+  } catch (erro) {
+    if (erro instanceof SaldoInsuficienteErro) {
+      return { erro: "SALDO INSUFICIENTE" } as const;
+    }
+
+    throw erro;
+  }
 }

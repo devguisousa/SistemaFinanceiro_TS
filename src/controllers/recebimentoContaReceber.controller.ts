@@ -5,6 +5,7 @@ import {
   recebimentoSchema,
 } from "../schemas/recebimentoContaReceber.schema.js";
 import {
+  apagarRecebimento,
   buscarRecebimento,
   cadastrarRecebimento,
   listarRecebimentos,
@@ -135,4 +136,27 @@ export async function listarPorContaReceber(req: Request, res: Response) {
   }
 
   res.status(200).json(recebimentos);
+}
+
+// DELETE /recebimentos/:id
+export async function apagar(req: Request, res: Response) {
+  const resultado = idRecebimentoSchema.safeParse(req.params);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const apagado = await apagarRecebimento(req.usuario!.id, resultado.data.id);
+
+  if ("erro" in apagado) {
+    const status = apagado.erro === "RECEBIMENTO NÃO ENCONTRADO" ? 404 : 409;
+    res.status(status).json({ erro: apagado.erro });
+    return;
+  }
+
+  res.status(204).send();
 }

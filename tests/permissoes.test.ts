@@ -68,7 +68,7 @@ describe("Dados separados por usuário", () => {
     const tentativas = [
       outro.get(`/contas/${contaId}`),
       outro.get(`/contas/${contaId}/saldo`),
-      outro.put(`/contas/${contaId}`).send({ nome: "X", saldoInicial: "0" }),
+      outro.put(`/contas/${contaId}`).send({ nome: "X", saldoAtual: "0" }),
       outro.delete(`/contas/${contaId}`),
       outro.get(`/categoria/${categoriaId}`),
       outro

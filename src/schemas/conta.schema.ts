@@ -5,18 +5,24 @@ const saldoSchema = z
   .string()
   .regex(/^(0|[1-9]\d{0,9})(\.\d{1,2})?$/, "Saldo inválido");
 
-export const atualizarContaSchema = z.object({
-  nome: z
-    .string()
-    .trim()
-    .min(1, "Nome obrigatório")
-    .max(100, "Nome muito grande"),
+const nomeSchema = z
+  .string()
+  .trim()
+  .min(1, "Nome obrigatório")
+  .max(100, "Nome muito grande");
 
-  saldoInicial: saldoSchema,
+export const cadastrarContaSchema = z.object({
+  nome: nomeSchema,
+
+  saldoInicial: saldoSchema.default("0.00"),
 });
 
-export const cadastrarContaSchema = atualizarContaSchema.extend({
-  saldoInicial: saldoSchema.default("0.00"),
+// Na edição o usuário digita o saldo atual (opcional): ele vira o saldo da
+// conta, sem descontar o que já foi pago ou recebido
+export const atualizarContaSchema = z.object({
+  nome: nomeSchema,
+
+  saldoAtual: saldoSchema.optional(),
 });
 
 export const idContaSchema = idTextoSchema;

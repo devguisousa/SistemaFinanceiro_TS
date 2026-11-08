@@ -18,7 +18,7 @@ describe("Contas", () => {
 
     const atualizada = await api()
       .put(`/contas/${id}`)
-      .send({ nome: "Inter", saldoInicial: "10" });
+      .send({ nome: "Inter", saldoAtual: "10" });
     expect(atualizada.status).toBe(200);
     expect(atualizada.body.nome).toBe("Inter");
 
@@ -90,6 +90,7 @@ describe("Contas", () => {
       totalReceitas: "50.25",
       totalDespesas: "20.00",
       saldoAtual: "130.25",
+      saldoDefinidoEm: null,
     });
   });
 

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  apagarPagamento,
   buscarPagamento,
   listarPagamento,
   listarPagamentoContaPagar,
@@ -14,3 +15,6 @@ pagamentoPagarRoutes.get("/contaPagar/:id", listarPagamentoContaPagar);
 
 // Lançamento: qualquer usuário logado
 pagamentoPagarRoutes.post("/contaPagar/:id", registrarPagamento);
+
+// Desfaz o pagamento (o valor volta para a conta)
+pagamentoPagarRoutes.delete("/:id", apagarPagamento);

@@ -5,6 +5,7 @@ import {
   registrarPagamentoSchema,
 } from "../schemas/pagamentoPagar.schema.js";
 import {
+  apagarPagamento as apagarPagamentoService,
   buscarPagamento as buscarPagamentoService,
   listarPagamentoContaPagar as listarPagamentoContaPagarService,
   listarPagamento as listarPagamentoService,
@@ -133,4 +134,29 @@ export async function listarPagamentoContaPagar(req: Request, res: Response) {
   }
 
   res.status(200).json(pagamentos);
+}
+
+// DELETE /pagamentoPagar/:id
+export async function apagarPagamento(req: Request, res: Response) {
+  const resultado = idPagamentoSchema.safeParse(req.params);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "ID INVÁLIDO",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const apagado = await apagarPagamentoService(
+    req.usuario!.id,
+    resultado.data.id,
+  );
+
+  if ("erro" in apagado) {
+    res.status(404).json({ erro: apagado.erro });
+    return;
+  }
+
+  res.status(204).send();
 }

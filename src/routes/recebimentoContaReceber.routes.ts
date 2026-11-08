@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  apagar,
   buscar,
   cadastrar,
   listar,
@@ -17,3 +18,6 @@ recebimentoContaReceberRoutes.get(
 
 // Lançamento: qualquer usuário logado
 recebimentoContaReceberRoutes.post("/contaReceber/:id/recebimentos", cadastrar);
+
+// Desfaz o recebimento (o valor sai da conta)
+recebimentoContaReceberRoutes.delete("/recebimentos/:id", apagar);

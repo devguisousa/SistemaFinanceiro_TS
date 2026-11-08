@@ -93,18 +93,17 @@ export async function atualizar(req: Request, res: Response) {
     return;
   }
 
-  const { nome, saldoInicial } = resultado.data;
+  const { nome, saldoAtual } = resultado.data;
 
   const conta = await atualizarConta(
     req.usuario!.id,
     resultadoId.data,
     nome,
-    saldoInicial,
+    saldoAtual,
   );
 
   if ("erro" in conta) {
-    const status = conta.erro === "CONTA NÃO ENCONTRADA" ? 404 : 409;
-    res.status(status).json({ erro: conta.erro });
+    res.status(404).json({ erro: conta.erro });
     return;
   }
 

@@ -13,13 +13,16 @@ export async function calcularSaldo(
     return null;
   }
 
+  // Saldo digitado pelo usuário: só contam as transações lançadas depois
+  const depoisDoCorte = { gt: conta.transacaoCorteId };
+
   const receitas = await tx.transacao.aggregate({
-    where: { contaId, tipo: "RECEITA" },
+    where: { contaId, tipo: "RECEITA", id: depoisDoCorte },
     _sum: { valor: true },
   });
 
   const despesas = await tx.transacao.aggregate({
-    where: { contaId, tipo: "DESPESA" },
+    where: { contaId, tipo: "DESPESA", id: depoisDoCorte },
     _sum: { valor: true },
   });
 
