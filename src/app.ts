@@ -72,3 +72,6 @@ app.use((req, res) => {
 });
 
 app.use(errorMiddleware);
+
+// A Vercel usa o export default como entrada da API
+export default app;

@@ -1,6 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
+import type { Papel } from "../../generated/prisma/client.js";
 import { prisma } from "../prisma.js";
 import { verificarAccessToken } from "../services/token.service.js";
+
+// Adiciona o req.usuario no tipo do Request do Express
+declare global {
+  namespace Express {
+    interface Request {
+      usuario?: {
+        id: number;
+        papel: Papel;
+      };
+    }
+  }
+}
 
 // Exige "Authorization: Bearer <token>" e preenche req.usuario.
 // Também confere no banco se o usuário ainda existe e se o token não foi

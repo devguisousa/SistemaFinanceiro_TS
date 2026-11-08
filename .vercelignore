@@ -1,0 +1,10 @@
+# Não sobe para a Vercel (o generated é recriado pelo prisma generate no build)
+node_modules
+dist
+generated
+.env
+.env.*
+.agents
+.claude
+.windsurf
+tests

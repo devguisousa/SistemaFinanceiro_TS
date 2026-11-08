@@ -11,3 +11,6 @@ dist
 skills-lock.json
 .claude/skills/
 .windsurf/
+.vercel
+.env*.local
+.env*
