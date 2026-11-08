@@ -9,28 +9,32 @@ type DadosRecebimento = {
   valor: string;
 };
 
-export async function cadastrarRecebimento(dados: DadosRecebimento) {
+export async function cadastrarRecebimento(
+  usuarioId: number,
+  dados: DadosRecebimento,
+) {
   const valor = new Prisma.Decimal(dados.valor);
 
   return executarTransacao(async (tx) => {
-    const contaReceber = await tx.contaReceber.findUnique({
-      where: { id: dados.contaReceberId },
+    // Conta a receber, conta bancária e categoria precisam ser do usuário
+    const contaReceber = await tx.contaReceber.findFirst({
+      where: { id: dados.contaReceberId, usuarioId },
     });
 
     if (!contaReceber) {
       return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
     }
 
-    const conta = await tx.conta.findUnique({
-      where: { id: dados.contaId },
+    const conta = await tx.conta.findFirst({
+      where: { id: dados.contaId, usuarioId },
     });
 
     if (!conta) {
       return { erro: "CONTA BANCÁRIA NÃO ENCONTRADA" } as const;
     }
 
-    const categoria = await tx.categoria.findUnique({
-      where: { id: dados.categoriaId },
+    const categoria = await tx.categoria.findFirst({
+      where: { id: dados.categoriaId, usuarioId },
     });
 
     if (!categoria) {
@@ -90,25 +94,32 @@ export async function cadastrarRecebimento(dados: DadosRecebimento) {
   });
 }
 
-export async function listarRecebimentos(pagina = 1, limite = 10) {
+export async function listarRecebimentos(
+  usuarioId: number,
+  pagina = 1,
+  limite = 10,
+) {
   const skip = (pagina - 1) * limite;
 
+  const where = { contaReceber: { usuarioId } };
+
   const recebimentos = await prisma.recebimentoContaReceber.findMany({
+    where,
     skip,
     take: limite,
     orderBy: [{ data: "desc" }, { id: "desc" }],
   });
 
-  const total = await prisma.recebimentoContaReceber.count();
+  const total = await prisma.recebimentoContaReceber.count({ where });
 
   const totalPagina = Math.ceil(total / limite);
 
   return { recebimentos, pagina, limite, total, totalPagina };
 }
 
-export async function buscarRecebimento(id: number) {
-  const recebimento = await prisma.recebimentoContaReceber.findUnique({
-    where: { id },
+export async function buscarRecebimento(usuarioId: number, id: number) {
+  const recebimento = await prisma.recebimentoContaReceber.findFirst({
+    where: { id, contaReceber: { usuarioId } },
   });
 
   if (!recebimento) {
@@ -119,11 +130,12 @@ export async function buscarRecebimento(id: number) {
 }
 
 export async function listarRecebimentosPorContaReceber(
+  usuarioId: number,
   id: number,
   pagina = 1,
   limite = 10,
 ) {
-  const contaReceber = await buscarContaReceber(id);
+  const contaReceber = await buscarContaReceber(usuarioId, id);
 
   if ("erro" in contaReceber) {
     return contaReceber;

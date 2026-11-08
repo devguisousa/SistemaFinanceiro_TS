@@ -55,6 +55,30 @@ export async function registrarUsuario(dados: DadosCadastro) {
   return { usuario };
 }
 
+// Cadastro aberto: cria um USUARIO com banco pessoal vazio e já devolve os tokens
+export async function cadastrarSozinho(dados: Credenciais) {
+  const existe = await prisma.usuario.findUnique({
+    where: { email: dados.email },
+  });
+
+  if (existe) {
+    return { erro: "USUÁRIO JÁ EXISTE" } as const;
+  }
+
+  const usuario = await prisma.usuario.create({
+    data: {
+      email: dados.email,
+      senha: await bcrypt.hash(dados.senha, CUSTO_BCRYPT),
+      papel: "USUARIO",
+    },
+  });
+
+  return {
+    accessToken: gerarAccessToken(usuario),
+    refreshToken: await gerarRefreshToken(usuario.id),
+  };
+}
+
 export async function precisaDeAdmin() {
   const admins = await prisma.usuario.count({ where: { papel: "ADMIN" } });
 

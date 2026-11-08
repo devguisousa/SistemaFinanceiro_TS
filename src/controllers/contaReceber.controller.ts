@@ -23,7 +23,10 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const contaReceber = await cadastrarContaReceber(resultado.data);
+  const contaReceber = await cadastrarContaReceber(
+    req.usuario!.id,
+    resultado.data,
+  );
 
   res.status(201).json(contaReceber.contaReceber);
 }
@@ -39,7 +42,10 @@ export async function listar(req: Request, res: Response) {
     return;
   }
 
-  const contasReceber = await listarContaReceber(resultado.data);
+  const contasReceber = await listarContaReceber(
+    req.usuario!.id,
+    resultado.data,
+  );
 
   res.status(200).json(contasReceber);
 }
@@ -55,7 +61,10 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const contaReceber = await buscarContaReceber(resultado.data.id);
+  const contaReceber = await buscarContaReceber(
+    req.usuario!.id,
+    resultado.data.id,
+  );
 
   if ("erro" in contaReceber) {
     res.status(404).json({ erro: contaReceber.erro });
@@ -87,6 +96,7 @@ export async function atualizar(req: Request, res: Response) {
   }
 
   const contaReceber = await atualizarContaReceber(
+    req.usuario!.id,
     resultadoId.data.id,
     resultado.data,
   );
@@ -112,7 +122,10 @@ export async function deletar(req: Request, res: Response) {
     return;
   }
 
-  const deletado = await deletarContaReceber(resultado.data.id);
+  const deletado = await deletarContaReceber(
+    req.usuario!.id,
+    resultado.data.id,
+  );
 
   if ("erro" in deletado) {
     const status =

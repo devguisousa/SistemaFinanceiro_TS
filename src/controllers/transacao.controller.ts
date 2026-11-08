@@ -30,7 +30,7 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const transacao = await cadastrarTransacao(resultado.data);
+  const transacao = await cadastrarTransacao(req.usuario!.id, resultado.data);
 
   if ("erro" in transacao) {
     // Conta ou categoria não encontrada
@@ -55,7 +55,7 @@ export async function listar(req: Request, res: Response) {
 
   const filtros = resultado.data;
 
-  const transacoes = await listarTransacoes({
+  const transacoes = await listarTransacoes(req.usuario!.id, {
     tipo: filtros.tipo,
     contaId: filtros.contaId,
     categoriaId: filtros.categoriaId,
@@ -77,7 +77,7 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const transacao = await buscarTransacao(resultado.data);
+  const transacao = await buscarTransacao(req.usuario!.id, resultado.data);
 
   if ("erro" in transacao) {
     res.status(404).json({ erro: transacao.erro });
@@ -108,7 +108,11 @@ export async function atualizar(req: Request, res: Response) {
     return;
   }
 
-  const transacao = await atualizarTransacao(resultado.data, resultadoId.data);
+  const transacao = await atualizarTransacao(
+    req.usuario!.id,
+    resultado.data,
+    resultadoId.data,
+  );
 
   if ("erro" in transacao) {
     // Transação, conta ou categoria não encontrada
@@ -131,7 +135,7 @@ export async function deletar(req: Request, res: Response) {
     return;
   }
 
-  const deletado = await deletarTransacao(resultado.data);
+  const deletado = await deletarTransacao(req.usuario!.id, resultado.data);
 
   if ("erro" in deletado) {
     const status = deletado.erro === "TRANSAÇÃO NÃO ENCONTRADA" ? 404 : 409;
@@ -153,7 +157,7 @@ export async function buscarReceita(req: Request, res: Response) {
     return;
   }
 
-  const receita = await buscarReceitaPorId(resultado.data);
+  const receita = await buscarReceitaPorId(req.usuario!.id, resultado.data);
 
   if ("erro" in receita) {
     res.status(404).json({ erro: receita.erro });
@@ -174,7 +178,7 @@ export async function buscarDespesa(req: Request, res: Response) {
     return;
   }
 
-  const despesa = await buscarDespesaPorId(resultado.data);
+  const despesa = await buscarDespesaPorId(req.usuario!.id, resultado.data);
 
   if ("erro" in despesa) {
     res.status(404).json({ erro: despesa.erro });
@@ -206,7 +210,7 @@ export async function listarReceitasPorConta(req: Request, res: Response) {
     return;
   }
 
-  const conta = await buscarContas(resultadoId.data);
+  const conta = await buscarContas(req.usuario!.id, resultadoId.data);
 
   if (!conta) {
     res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
@@ -216,7 +220,12 @@ export async function listarReceitasPorConta(req: Request, res: Response) {
   const pagina = resultado.data.page ?? 1;
   const limite = resultado.data.limit ?? 10;
 
-  const receitas = await listarReceita(conta.id, pagina, limite);
+  const receitas = await listarReceita(
+    req.usuario!.id,
+    conta.id,
+    pagina,
+    limite,
+  );
 
   res.status(200).json(receitas);
 }
@@ -243,7 +252,7 @@ export async function listarDespesasPorConta(req: Request, res: Response) {
     return;
   }
 
-  const conta = await buscarContas(resultadoId.data);
+  const conta = await buscarContas(req.usuario!.id, resultadoId.data);
 
   if (!conta) {
     res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
@@ -253,7 +262,12 @@ export async function listarDespesasPorConta(req: Request, res: Response) {
   const pagina = resultado.data.page ?? 1;
   const limite = resultado.data.limit ?? 10;
 
-  const despesas = await listarDespesa(conta.id, pagina, limite);
+  const despesas = await listarDespesa(
+    req.usuario!.id,
+    conta.id,
+    pagina,
+    limite,
+  );
 
   res.status(200).json(despesas);
 }

@@ -22,23 +22,30 @@ function inicioDeHoje() {
   return hoje;
 }
 
-export async function cadastrarContaReceber(dados: DadosContaReceber) {
+export async function cadastrarContaReceber(
+  usuarioId: number,
+  dados: DadosContaReceber,
+) {
   const contaReceber = await prisma.contaReceber.create({
     data: {
       descricao: dados.descricao.trim(),
       valorTotal: dados.valorTotal,
       vencimento: dados.vencimento,
+      usuarioId,
     },
   });
 
   return { contaReceber };
 }
 
-export async function listarContaReceber(filtros: FiltrosContaReceber) {
+export async function listarContaReceber(
+  usuarioId: number,
+  filtros: FiltrosContaReceber,
+) {
   const pagina = filtros.pagina ?? 1;
   const limite = filtros.limite ?? 10;
 
-  const where: Prisma.ContaReceberWhereInput = {};
+  const where: Prisma.ContaReceberWhereInput = { usuarioId };
 
   if (filtros.status) {
     where.status = filtros.status;
@@ -76,9 +83,9 @@ export async function listarContaReceber(filtros: FiltrosContaReceber) {
   return { contaReceber, pagina, limite, total, totalPagina };
 }
 
-export async function buscarContaReceber(id: number) {
-  const contaReceber = await prisma.contaReceber.findUnique({
-    where: { id },
+export async function buscarContaReceber(usuarioId: number, id: number) {
+  const contaReceber = await prisma.contaReceber.findFirst({
+    where: { id, usuarioId },
   });
 
   if (!contaReceber) {
@@ -89,13 +96,16 @@ export async function buscarContaReceber(id: number) {
 }
 
 export async function atualizarContaReceber(
+  usuarioId: number,
   id: number,
   dados: DadosContaReceber,
 ) {
   const valorTotal = new Prisma.Decimal(dados.valorTotal);
 
   return executarTransacao(async (tx) => {
-    const existe = await tx.contaReceber.findUnique({ where: { id } });
+    const existe = await tx.contaReceber.findFirst({
+      where: { id, usuarioId },
+    });
 
     if (!existe) {
       return { erro: "CONTA A RECEBER NÃO ENCONTRADA" } as const;
@@ -128,8 +138,8 @@ export async function atualizarContaReceber(
   });
 }
 
-export async function deletarContaReceber(id: number) {
-  const existe = await buscarContaReceber(id);
+export async function deletarContaReceber(usuarioId: number, id: number) {
+  const existe = await buscarContaReceber(usuarioId, id);
 
   if ("erro" in existe) {
     return existe;

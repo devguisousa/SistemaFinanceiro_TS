@@ -22,23 +22,30 @@ function inicioDeHoje() {
   return hoje;
 }
 
-export async function cadastrarContaPagar(dados: DadosContaPagar) {
+export async function cadastrarContaPagar(
+  usuarioId: number,
+  dados: DadosContaPagar,
+) {
   const contaPagar = await prisma.contaPagar.create({
     data: {
       descricao: dados.descricao.trim(),
       valorTotal: dados.valorTotal,
       vencimento: dados.vencimento,
+      usuarioId,
     },
   });
 
   return { contaPagar };
 }
 
-export async function listarContaPagar(filtros: FiltrosContaPagar) {
+export async function listarContaPagar(
+  usuarioId: number,
+  filtros: FiltrosContaPagar,
+) {
   const pagina = filtros.pagina ?? 1;
   const limite = filtros.limite ?? 10;
 
-  const where: Prisma.ContaPagarWhereInput = {};
+  const where: Prisma.ContaPagarWhereInput = { usuarioId };
 
   if (filtros.status) {
     where.status = filtros.status;
@@ -73,9 +80,9 @@ export async function listarContaPagar(filtros: FiltrosContaPagar) {
   return { contaPagar, total, pagina, limite, totalPaginas };
 }
 
-export async function buscarContaPagar(id: number) {
-  const contaPagar = await prisma.contaPagar.findUnique({
-    where: { id },
+export async function buscarContaPagar(usuarioId: number, id: number) {
+  const contaPagar = await prisma.contaPagar.findFirst({
+    where: { id, usuarioId },
   });
 
   if (!contaPagar) {
@@ -85,11 +92,15 @@ export async function buscarContaPagar(id: number) {
   return { contaPagar };
 }
 
-export async function atualizarContaPagar(id: number, dados: DadosContaPagar) {
+export async function atualizarContaPagar(
+  usuarioId: number,
+  id: number,
+  dados: DadosContaPagar,
+) {
   const valorTotal = new Prisma.Decimal(dados.valorTotal);
 
   return executarTransacao(async (tx) => {
-    const existe = await tx.contaPagar.findUnique({ where: { id } });
+    const existe = await tx.contaPagar.findFirst({ where: { id, usuarioId } });
 
     if (!existe) {
       return { erro: "CONTA A PAGAR NÃO ENCONTRADA" } as const;
@@ -122,8 +133,8 @@ export async function atualizarContaPagar(id: number, dados: DadosContaPagar) {
   });
 }
 
-export async function deletarContaPagar(id: number) {
-  const existe = await buscarContaPagar(id);
+export async function deletarContaPagar(usuarioId: number, id: number) {
+  const existe = await buscarContaPagar(usuarioId, id);
 
   if ("erro" in existe) {
     return existe;

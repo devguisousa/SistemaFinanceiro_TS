@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   alterarSenha,
+  cadastrar,
   login,
   logout,
   perfil,
@@ -25,6 +26,9 @@ export const authRoutes = Router();
 authRoutes.post("/login", limitadorLoginPorIp, limitadorLoginPorConta, login);
 authRoutes.post("/refresh", limitadorRefresh, refresh);
 authRoutes.post("/logout", limitadorRefresh, logout);
+
+// Cadastro aberto: cria um USUARIO com dados próprios
+authRoutes.post("/cadastro", limitadorLoginPorIp, cadastrar);
 
 // Primeiro acesso: cria o ADMIN quando o banco ainda não tem nenhum
 authRoutes.get("/status", status);

@@ -19,29 +19,38 @@ const incluirTransacoes = {
 } as const;
 
 // Cria a transferência e dois lançamentos: DESPESA na origem e RECEITA no destino
-export async function transferir(dados: DadosTransferencia) {
+export async function transferir(usuarioId: number, dados: DadosTransferencia) {
   const valor = new Prisma.Decimal(dados.valor);
 
   try {
     return await executarTransacao(async (tx) => {
-      const origem = await tx.conta.findUnique({
-        where: { id: dados.contaOrigemId },
+      // As duas contas precisam ser do usuário
+      const origem = await tx.conta.findFirst({
+        where: { id: dados.contaOrigemId, usuarioId },
       });
 
       if (!origem) {
         return { erro: "CONTA DE ORIGEM NÃO ENCONTRADA" } as const;
       }
 
-      const destino = await tx.conta.findUnique({
-        where: { id: dados.contaDestinoId },
+      const destino = await tx.conta.findFirst({
+        where: { id: dados.contaDestinoId, usuarioId },
       });
 
       if (!destino) {
         return { erro: "CONTA DE DESTINO NÃO ENCONTRADA" } as const;
       }
 
-      const saida = await categoriaDoSistema(tx, "Transferência enviada");
-      const entrada = await categoriaDoSistema(tx, "Transferência recebida");
+      const saida = await categoriaDoSistema(
+        tx,
+        usuarioId,
+        "Transferência enviada",
+      );
+      const entrada = await categoriaDoSistema(
+        tx,
+        usuarioId,
+        "Transferência recebida",
+      );
 
       const transferencia = await tx.transferencia.create({
         data: {
@@ -93,26 +102,34 @@ export async function transferir(dados: DadosTransferencia) {
   }
 }
 
-export async function listarTransferencias(pagina = 1, limite = 10) {
+export async function listarTransferencias(
+  usuarioId: number,
+  pagina = 1,
+  limite = 10,
+) {
   const skip = (pagina - 1) * limite;
 
+  // Origem e destino são sempre do mesmo usuário
+  const where = { contaOrigem: { usuarioId } };
+
   const transferencias = await prisma.transferencia.findMany({
+    where,
     skip,
     take: limite,
     orderBy: [{ data: "desc" }, { id: "desc" }],
     include: incluirTransacoes,
   });
 
-  const total = await prisma.transferencia.count();
+  const total = await prisma.transferencia.count({ where });
 
   const totalPaginas = Math.ceil(total / limite);
 
   return { transferencias, total, pagina, limite, totalPaginas };
 }
 
-export async function buscarTransferencia(id: number) {
-  const transferencia = await prisma.transferencia.findUnique({
-    where: { id },
+export async function buscarTransferencia(usuarioId: number, id: number) {
+  const transferencia = await prisma.transferencia.findFirst({
+    where: { id, contaOrigem: { usuarioId } },
     include: incluirTransacoes,
   });
 
@@ -124,11 +141,11 @@ export async function buscarTransferencia(id: number) {
 }
 
 // Estorno: apaga a transferência e os dois lançamentos
-export async function estornarTransferencia(id: number) {
+export async function estornarTransferencia(usuarioId: number, id: number) {
   try {
     return await executarTransacao(async (tx) => {
-      const transferencia = await tx.transferencia.findUnique({
-        where: { id },
+      const transferencia = await tx.transferencia.findFirst({
+        where: { id, contaOrigem: { usuarioId } },
       });
 
       if (!transferencia) {

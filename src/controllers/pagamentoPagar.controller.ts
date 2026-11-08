@@ -33,7 +33,7 @@ export async function registrarPagamento(req: Request, res: Response) {
     return;
   }
 
-  const pagamento = await registrarPagamentoService({
+  const pagamento = await registrarPagamentoService(req.usuario!.id, {
     contaPagarId: resultadoId.data.id,
     contaId: resultado.data.contaId,
     categoriaId: resultado.data.categoriaId,
@@ -63,7 +63,11 @@ export async function listarPagamento(req: Request, res: Response) {
 
   const { pagina, limite } = resultado.data;
 
-  const pagamentos = await listarPagamentoService(pagina, limite);
+  const pagamentos = await listarPagamentoService(
+    req.usuario!.id,
+    pagina,
+    limite,
+  );
 
   res.status(200).json(pagamentos);
 }
@@ -79,7 +83,10 @@ export async function buscarPagamento(req: Request, res: Response) {
     return;
   }
 
-  const pagamento = await buscarPagamentoService(resultado.data.id);
+  const pagamento = await buscarPagamentoService(
+    req.usuario!.id,
+    resultado.data.id,
+  );
 
   if ("erro" in pagamento) {
     res.status(404).json({ erro: pagamento.erro });
@@ -114,6 +121,7 @@ export async function listarPagamentoContaPagar(req: Request, res: Response) {
   const { pagina, limite } = resultado.data;
 
   const pagamentos = await listarPagamentoContaPagarService(
+    req.usuario!.id,
     resultadoId.data.id,
     pagina,
     limite,

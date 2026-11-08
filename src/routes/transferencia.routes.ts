@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { somenteAdmin } from "../middleware/somenteAdmin.middleware.js";
 import {
   buscar,
   cadastrar,
@@ -16,4 +15,4 @@ transferenciaRoutes.get("/:id", buscar);
 transferenciaRoutes.post("/", cadastrar);
 
 // Somente ADMIN (estorno)
-transferenciaRoutes.delete("/:id", somenteAdmin, estornar);
+transferenciaRoutes.delete("/:id", estornar);

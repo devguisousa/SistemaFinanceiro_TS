@@ -33,7 +33,7 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const recebimento = await cadastrarRecebimento({
+  const recebimento = await cadastrarRecebimento(req.usuario!.id, {
     contaReceberId: resultadoId.data.id,
     contaId: resultado.data.contaId,
     categoriaId: resultado.data.categoriaId,
@@ -64,7 +64,11 @@ export async function listar(req: Request, res: Response) {
 
   const { pagina, limite } = resultado.data;
 
-  const recebimentos = await listarRecebimentos(pagina, limite);
+  const recebimentos = await listarRecebimentos(
+    req.usuario!.id,
+    pagina,
+    limite,
+  );
 
   res.status(200).json(recebimentos);
 }
@@ -81,7 +85,10 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const recebimento = await buscarRecebimento(resultado.data.id);
+  const recebimento = await buscarRecebimento(
+    req.usuario!.id,
+    resultado.data.id,
+  );
 
   if ("erro" in recebimento) {
     res.status(404).json({ erro: recebimento.erro });
@@ -116,6 +123,7 @@ export async function listarPorContaReceber(req: Request, res: Response) {
   const { pagina, limite } = resultado.data;
 
   const recebimentos = await listarRecebimentosPorContaReceber(
+    req.usuario!.id,
     resultadoId.data.id,
     pagina,
     limite,

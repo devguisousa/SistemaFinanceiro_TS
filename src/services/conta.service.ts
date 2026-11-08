@@ -5,49 +5,59 @@ import {
   garantirSaldoNaoNegativo,
 } from "./saldo.service.js";
 
-export async function cadastrarConta(nome: string, saldoInicial: string) {
+export async function cadastrarConta(
+  usuarioId: number,
+  nome: string,
+  saldoInicial: string,
+) {
   const conta = await prisma.conta.create({
     data: {
       nome: nome.trim(),
       saldoInicial,
+      usuarioId,
     },
   });
 
   return conta;
 }
 
-export async function listarContas(pagina = 1, limite = 10) {
+export async function listarContas(usuarioId: number, pagina = 1, limite = 10) {
   const skip = (pagina - 1) * limite;
 
+  const where = { usuarioId };
+
   const contas = await prisma.conta.findMany({
+    where,
     skip,
     take: limite,
     orderBy: { id: "asc" },
   });
 
-  const total = await prisma.conta.count();
+  const total = await prisma.conta.count({ where });
 
   const totalPaginas = Math.ceil(total / limite);
 
   return { contas, total, pagina, limite, totalPaginas };
 }
 
-export async function buscarContas(id: number) {
-  const conta = await prisma.conta.findUnique({
-    where: { id },
+// Só acha a conta se ela for do usuário
+export async function buscarContas(usuarioId: number, id: number) {
+  const conta = await prisma.conta.findFirst({
+    where: { id, usuarioId },
   });
 
   return conta;
 }
 
 export async function atualizarConta(
+  usuarioId: number,
   id: number,
   nome: string,
   saldoInicial: string,
 ) {
   try {
     return await executarTransacao(async (tx) => {
-      const existe = await tx.conta.findUnique({ where: { id } });
+      const existe = await tx.conta.findFirst({ where: { id, usuarioId } });
 
       if (!existe) {
         return { erro: "CONTA NÃO ENCONTRADA" } as const;
@@ -72,8 +82,8 @@ export async function atualizarConta(
   }
 }
 
-export async function deletarConta(id: number) {
-  const conta = await buscarContas(id);
+export async function deletarConta(usuarioId: number, id: number) {
+  const conta = await buscarContas(usuarioId, id);
 
   if (!conta) {
     return { erro: "CONTA NÃO ENCONTRADA" } as const;
@@ -94,7 +104,13 @@ export async function deletarConta(id: number) {
   return { conta };
 }
 
-export async function buscarSaldoAtual(id: number) {
+export async function buscarSaldoAtual(usuarioId: number, id: number) {
+  const conta = await buscarContas(usuarioId, id);
+
+  if (!conta) {
+    return null;
+  }
+
   const saldo = await calcularSaldo(prisma, id);
 
   if (!saldo) {

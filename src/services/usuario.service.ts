@@ -82,6 +82,19 @@ export async function apagarUsuario(id: number) {
       }
     }
 
+    // Apaga os dados financeiros dele, de baixo para cima (as chaves são RESTRICT)
+    const dono = { usuarioId: id };
+    await tx.transacao.deleteMany({ where: { conta: dono } });
+    await tx.transferencia.deleteMany({ where: { contaOrigem: dono } });
+    await tx.pagamentoContaPagar.deleteMany({ where: { contaPagar: dono } });
+    await tx.recebimentoContaReceber.deleteMany({
+      where: { contaReceber: dono },
+    });
+    await tx.contaPagar.deleteMany({ where: dono });
+    await tx.contaReceber.deleteMany({ where: dono });
+    await tx.categoria.deleteMany({ where: dono });
+    await tx.conta.deleteMany({ where: dono });
+
     // Os refresh tokens são apagados em cascata. O access token para de valer
     // porque o autenticar confere se o usuário ainda existe
     await tx.usuario.delete({ where: { id } });

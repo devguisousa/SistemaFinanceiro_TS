@@ -18,7 +18,10 @@ function nomeReservado(nome: string) {
   );
 }
 
-export async function cadastrarCategoria(dados: DadosCategoria) {
+export async function cadastrarCategoria(
+  usuarioId: number,
+  dados: DadosCategoria,
+) {
   const nomeLimpo = dados.nome.trim();
 
   if (nomeReservado(nomeLimpo)) {
@@ -26,7 +29,7 @@ export async function cadastrarCategoria(dados: DadosCategoria) {
   }
 
   const existe = await prisma.categoria.findUnique({
-    where: { nome: nomeLimpo },
+    where: { usuarioId_nome: { usuarioId, nome: nomeLimpo } },
   });
 
   if (existe) {
@@ -34,20 +37,21 @@ export async function cadastrarCategoria(dados: DadosCategoria) {
   }
 
   const categoria = await prisma.categoria.create({
-    data: { nome: nomeLimpo, tipo: dados.tipo },
+    data: { nome: nomeLimpo, tipo: dados.tipo, usuarioId },
   });
 
   return { categoria };
 }
 
 export async function listarCategoria(
+  usuarioId: number,
   pagina = 1,
   limite = 10,
   tipo?: TipoCategoria,
 ) {
   const skip = (pagina - 1) * limite;
 
-  const where: { tipo?: TipoCategoria } = {};
+  const where: { usuarioId: number; tipo?: TipoCategoria } = { usuarioId };
 
   if (tipo) {
     where.tipo = tipo;
@@ -67,9 +71,9 @@ export async function listarCategoria(
   return { categoria, total, pagina, limite, totalPaginas };
 }
 
-export async function buscarCategoria(id: number) {
-  const categoria = await prisma.categoria.findUnique({
-    where: { id },
+export async function buscarCategoria(usuarioId: number, id: number) {
+  const categoria = await prisma.categoria.findFirst({
+    where: { id, usuarioId },
   });
 
   if (!categoria) {
@@ -79,8 +83,12 @@ export async function buscarCategoria(id: number) {
   return { categoria };
 }
 
-export async function atualizarCategoria(id: number, dados: DadosCategoria) {
-  const existe = await buscarCategoria(id);
+export async function atualizarCategoria(
+  usuarioId: number,
+  id: number,
+  dados: DadosCategoria,
+) {
+  const existe = await buscarCategoria(usuarioId, id);
 
   if ("erro" in existe) {
     return existe;
@@ -94,7 +102,7 @@ export async function atualizarCategoria(id: number, dados: DadosCategoria) {
   }
 
   const outraCategoria = await prisma.categoria.findUnique({
-    where: { nome: nomeLimpo },
+    where: { usuarioId_nome: { usuarioId, nome: nomeLimpo } },
   });
 
   if (outraCategoria && outraCategoria.id !== id) {
@@ -118,8 +126,8 @@ export async function atualizarCategoria(id: number, dados: DadosCategoria) {
   return { categoria };
 }
 
-export async function deletarCategoria(id: number) {
-  const existe = await buscarCategoria(id);
+export async function deletarCategoria(usuarioId: number, id: number) {
+  const existe = await buscarCategoria(usuarioId, id);
 
   if ("erro" in existe) {
     return existe;
@@ -138,17 +146,19 @@ export async function deletarCategoria(id: number) {
   return { categoria };
 }
 
-// Busca (ou cria) a categoria usada pelas transferências, sempre com o tipo certo
+// Busca (ou cria) a categoria do usuário usada pelas transferências,
+// sempre com o tipo certo
 export async function categoriaDoSistema(
   tx: Prisma.TransactionClient,
+  usuarioId: number,
   nome: "Transferência enviada" | "Transferência recebida",
 ) {
   const tipo = nome === "Transferência enviada" ? "DESPESA" : "RECEITA";
 
   const categoria = await tx.categoria.upsert({
-    where: { nome },
+    where: { usuarioId_nome: { usuarioId, nome } },
     update: {},
-    create: { nome, tipo },
+    create: { nome, tipo, usuarioId },
   });
 
   if (categoria.tipo === tipo) {

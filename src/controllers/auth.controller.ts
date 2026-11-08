@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
 import {
+  cadastroAbertoSchema,
   cadastroSchema,
   loginSchema,
   primeiroAdminSchema,
@@ -8,6 +9,7 @@ import {
 } from "../schemas/auth.schema.js";
 import {
   buscarPerfil,
+  cadastrarSozinho,
   criarPrimeiroAdmin,
   deslogarUsuario,
   logarUsuario,
@@ -38,6 +40,28 @@ export async function registrar(req: Request, res: Response) {
   }
 
   res.status(201).json(usuario.usuario);
+}
+
+// POST /auth/cadastro (pública): qualquer pessoa cria a própria conta
+export async function cadastrar(req: Request, res: Response) {
+  const resultado = cadastroAbertoSchema.safeParse(req.body);
+
+  if (!resultado.success) {
+    res.status(400).json({
+      erro: "DADOS INVÁLIDOS",
+      detalhes: resultado.error.issues,
+    });
+    return;
+  }
+
+  const tokens = await cadastrarSozinho(resultado.data);
+
+  if ("erro" in tokens) {
+    res.status(409).json({ erro: tokens.erro });
+    return;
+  }
+
+  res.status(201).json(tokens);
 }
 
 // GET /auth/status (pública): a tela de login pergunta se precisa criar o ADMIN

@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { somenteAdmin } from "../middleware/somenteAdmin.middleware.js";
 import {
   atualizar,
   buscar,
@@ -13,7 +12,6 @@ export const contaPagarRoutes = Router();
 contaPagarRoutes.get("/", listar);
 contaPagarRoutes.get("/:id", buscar);
 
-// Somente ADMIN
-contaPagarRoutes.post("/", somenteAdmin, cadastrar);
-contaPagarRoutes.put("/:id", somenteAdmin, atualizar);
-contaPagarRoutes.delete("/:id", somenteAdmin, deletar);
+contaPagarRoutes.post("/", cadastrar);
+contaPagarRoutes.put("/:id", atualizar);
+contaPagarRoutes.delete("/:id", deletar);

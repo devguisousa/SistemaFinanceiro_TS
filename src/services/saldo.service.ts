@@ -26,7 +26,9 @@ export async function calcularSaldo(
   const totalReceitas = receitas._sum.valor ?? new Prisma.Decimal(0);
   const totalDespesas = despesas._sum.valor ?? new Prisma.Decimal(0);
 
-  const saldoAtual = conta.saldoInicial.plus(totalReceitas).minus(totalDespesas);
+  const saldoAtual = conta.saldoInicial
+    .plus(totalReceitas)
+    .minus(totalDespesas);
 
   return { conta, totalReceitas, totalDespesas, saldoAtual };
 }

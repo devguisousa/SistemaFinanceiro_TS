@@ -14,20 +14,32 @@ model Conta {
   saldoInicial Decimal  @default(0) @db.Decimal(12, 2)
   criadoEm     DateTime @default(now())
 
+  // Dono da conta: cada usuário só vê e altera os próprios dados
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
   transacao            Transacao[]
   pagamentosContaPagar PagamentoContaPagar[]
   recebimento          RecebimentoContaReceber[]
 
   transferenciasEnviadas  Transferencia[] @relation("TransferenciaOrigem")
   transferenciasRecebidas Transferencia[] @relation("TransferenciaDestino")
+
+  @@index([usuarioId])
 }
 
 model Categoria {
   id   Int           @id @default(autoincrement())
-  nome String        @unique
+  nome String
   tipo TipoTransacao
 
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
   transacoes Transacao[]
+
+  // O nome só se repete entre usuários diferentes
+  @@unique([usuarioId, nome])
 }
 
 enum TipoTransacao {
@@ -71,6 +83,11 @@ model ContaPagar {
   status     StatusContaPagar      @default(PENDENTE)
   criadoEm   DateTime              @default(now())
   pagamentos PagamentoContaPagar[]
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
 }
 
 model PagamentoContaPagar {
@@ -102,6 +119,11 @@ model ContaReceber {
   criadoEm      DateTime           @default(now())
 
   recebimentos RecebimentoContaReceber[]
+
+  usuarioId Int
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
 }
 
 model RecebimentoContaReceber {
@@ -132,6 +154,11 @@ model Usuario {
   tokenVersao   Int            @default(0)
   criadoEm      DateTime       @default(now())
   refreshTokens RefreshToken[]
+
+  contas        Conta[]
+  categorias    Categoria[]
+  contasPagar   ContaPagar[]
+  contasReceber ContaReceber[]
 }
 
 model RefreshToken {

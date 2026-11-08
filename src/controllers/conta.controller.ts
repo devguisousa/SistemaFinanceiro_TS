@@ -27,7 +27,7 @@ export async function cadastrar(req: Request, res: Response) {
 
   const { nome, saldoInicial } = resultado.data;
 
-  const conta = await cadastrarConta(nome, saldoInicial);
+  const conta = await cadastrarConta(req.usuario!.id, nome, saldoInicial);
 
   res.status(201).json(conta);
 }
@@ -46,7 +46,7 @@ export async function listar(req: Request, res: Response) {
   const pagina = resultado.data.page ?? 1;
   const limite = resultado.data.limit ?? 10;
 
-  const contas = await listarContas(pagina, limite);
+  const contas = await listarContas(req.usuario!.id, pagina, limite);
 
   res.status(200).json(contas);
 }
@@ -62,7 +62,7 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const conta = await buscarContas(resultado.data);
+  const conta = await buscarContas(req.usuario!.id, resultado.data);
 
   if (!conta) {
     res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });
@@ -95,7 +95,12 @@ export async function atualizar(req: Request, res: Response) {
 
   const { nome, saldoInicial } = resultado.data;
 
-  const conta = await atualizarConta(resultadoId.data, nome, saldoInicial);
+  const conta = await atualizarConta(
+    req.usuario!.id,
+    resultadoId.data,
+    nome,
+    saldoInicial,
+  );
 
   if ("erro" in conta) {
     const status = conta.erro === "CONTA NÃO ENCONTRADA" ? 404 : 409;
@@ -117,7 +122,7 @@ export async function deletar(req: Request, res: Response) {
     return;
   }
 
-  const deletado = await deletarConta(resultado.data);
+  const deletado = await deletarConta(req.usuario!.id, resultado.data);
 
   if ("erro" in deletado) {
     const status = deletado.erro === "CONTA NÃO ENCONTRADA" ? 404 : 409;
@@ -139,7 +144,7 @@ export async function buscarSaldo(req: Request, res: Response) {
     return;
   }
 
-  const saldo = await buscarSaldoAtual(resultado.data);
+  const saldo = await buscarSaldoAtual(req.usuario!.id, resultado.data);
 
   if (!saldo) {
     res.status(404).json({ erro: "CONTA NÃO ENCONTRADA" });

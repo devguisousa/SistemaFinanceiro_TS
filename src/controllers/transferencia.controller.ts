@@ -22,7 +22,7 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const transferencia = await transferir(resultado.data);
+  const transferencia = await transferir(req.usuario!.id, resultado.data);
 
   if ("erro" in transferencia) {
     // Conta de origem ou de destino não encontrada
@@ -48,7 +48,11 @@ export async function listar(req: Request, res: Response) {
   const pagina = resultado.data.page ?? 1;
   const limite = resultado.data.limit ?? 10;
 
-  const transferencias = await listarTransferencias(pagina, limite);
+  const transferencias = await listarTransferencias(
+    req.usuario!.id,
+    pagina,
+    limite,
+  );
 
   res.status(200).json(transferencias);
 }
@@ -64,7 +68,10 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const transferencia = await buscarTransferencia(resultado.data);
+  const transferencia = await buscarTransferencia(
+    req.usuario!.id,
+    resultado.data,
+  );
 
   if ("erro" in transferencia) {
     res.status(404).json({ erro: transferencia.erro });
@@ -85,7 +92,10 @@ export async function estornar(req: Request, res: Response) {
     return;
   }
 
-  const estornada = await estornarTransferencia(resultado.data);
+  const estornada = await estornarTransferencia(
+    req.usuario!.id,
+    resultado.data,
+  );
 
   if ("erro" in estornada) {
     const status =

@@ -24,7 +24,7 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const contaPagar = await cadastrarContaPagar(resultado.data);
+  const contaPagar = await cadastrarContaPagar(req.usuario!.id, resultado.data);
 
   res.status(201).json(contaPagar.contaPagar);
 }
@@ -42,7 +42,7 @@ export async function listar(req: Request, res: Response) {
 
   const filtro = resultado.data;
 
-  const contasPagar = await listarContaPagar({
+  const contasPagar = await listarContaPagar(req.usuario!.id, {
     status: filtro.status,
     vencidas: filtro.vencidas,
     pagina: filtro.page,
@@ -63,7 +63,7 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const contaPagar = await buscarContaPagar(resultado.data);
+  const contaPagar = await buscarContaPagar(req.usuario!.id, resultado.data);
 
   if ("erro" in contaPagar) {
     res.status(404).json({ erro: contaPagar.erro });
@@ -94,7 +94,11 @@ export async function atualizar(req: Request, res: Response) {
     return;
   }
 
-  const contaPagar = await atualizarContaPagar(resultadoId.data, resultado.data);
+  const contaPagar = await atualizarContaPagar(
+    req.usuario!.id,
+    resultadoId.data,
+    resultado.data,
+  );
 
   if ("erro" in contaPagar) {
     const status =
@@ -117,7 +121,7 @@ export async function deletar(req: Request, res: Response) {
     return;
   }
 
-  const deletado = await deletarContaPagar(resultado.data);
+  const deletado = await deletarContaPagar(req.usuario!.id, resultado.data);
 
   if ("erro" in deletado) {
     const status = deletado.erro === "CONTA A PAGAR NÃO ENCONTRADA" ? 404 : 409;

@@ -31,6 +31,12 @@ export const cadastroSchema = z.object({
   papel: papelSchema.default("USUARIO"),
 });
 
+// Cadastro aberto: quem se cadastra por conta própria é sempre USUARIO
+export const cadastroAbertoSchema = z.object({
+  email: emailSchema,
+  senha: novaSenhaSchema,
+});
+
 // Primeiro acesso: cria o ADMIN quando o banco ainda não tem nenhum.
 // Não aceita "papel": quem chega por aqui sempre vira ADMIN
 export const primeiroAdminSchema = z.object({

@@ -13,29 +13,33 @@ type DadosPagamento = {
   valor: string;
 };
 
-export async function registrarPagamento(dados: DadosPagamento) {
+export async function registrarPagamento(
+  usuarioId: number,
+  dados: DadosPagamento,
+) {
   const valor = new Prisma.Decimal(dados.valor);
 
   try {
     return await executarTransacao(async (tx) => {
-      const contaPagar = await tx.contaPagar.findUnique({
-        where: { id: dados.contaPagarId },
+      // Conta a pagar, conta bancária e categoria precisam ser do usuário
+      const contaPagar = await tx.contaPagar.findFirst({
+        where: { id: dados.contaPagarId, usuarioId },
       });
 
       if (!contaPagar) {
         return { erro: "CONTA A PAGAR NÃO ENCONTRADA" } as const;
       }
 
-      const conta = await tx.conta.findUnique({
-        where: { id: dados.contaId },
+      const conta = await tx.conta.findFirst({
+        where: { id: dados.contaId, usuarioId },
       });
 
       if (!conta) {
         return { erro: "CONTA BANCÁRIA NÃO ENCONTRADA" } as const;
       }
 
-      const categoria = await tx.categoria.findUnique({
-        where: { id: dados.categoriaId },
+      const categoria = await tx.categoria.findFirst({
+        where: { id: dados.categoriaId, usuarioId },
       });
 
       if (!categoria) {
@@ -102,25 +106,32 @@ export async function registrarPagamento(dados: DadosPagamento) {
   }
 }
 
-export async function listarPagamento(pagina = 1, limite = 10) {
+export async function listarPagamento(
+  usuarioId: number,
+  pagina = 1,
+  limite = 10,
+) {
   const skip = (pagina - 1) * limite;
 
+  const where = { contaPagar: { usuarioId } };
+
   const pagamento = await prisma.pagamentoContaPagar.findMany({
+    where,
     skip,
     take: limite,
     orderBy: [{ data: "desc" }, { id: "desc" }],
   });
 
-  const total = await prisma.pagamentoContaPagar.count();
+  const total = await prisma.pagamentoContaPagar.count({ where });
 
   const totalPagina = Math.ceil(total / limite);
 
   return { pagamento, pagina, limite, total, totalPagina };
 }
 
-export async function buscarPagamento(id: number) {
-  const pagamento = await prisma.pagamentoContaPagar.findUnique({
-    where: { id },
+export async function buscarPagamento(usuarioId: number, id: number) {
+  const pagamento = await prisma.pagamentoContaPagar.findFirst({
+    where: { id, contaPagar: { usuarioId } },
   });
 
   if (!pagamento) {
@@ -131,11 +142,12 @@ export async function buscarPagamento(id: number) {
 }
 
 export async function listarPagamentoContaPagar(
+  usuarioId: number,
   id: number,
   pagina = 1,
   limite = 10,
 ) {
-  const contaPagar = await buscarContaPagar(id);
+  const contaPagar = await buscarContaPagar(usuarioId, id);
 
   if ("erro" in contaPagar) {
     return contaPagar;

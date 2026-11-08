@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { somenteAdmin } from "../middleware/somenteAdmin.middleware.js";
 import {
   atualizar,
   buscar,
@@ -24,6 +23,5 @@ transacaoRoutes.get("/:id/despesas", listarDespesasPorConta);
 // Lançamento: qualquer usuário logado
 transacaoRoutes.post("/", cadastrar);
 
-// Somente ADMIN
-transacaoRoutes.put("/:id", somenteAdmin, atualizar);
-transacaoRoutes.delete("/:id", somenteAdmin, deletar);
+transacaoRoutes.put("/:id", atualizar);
+transacaoRoutes.delete("/:id", deletar);

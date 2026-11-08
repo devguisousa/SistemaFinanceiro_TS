@@ -24,19 +24,23 @@ type FiltrosTransacao = {
   limite: number;
 };
 
-// Conta e categoria precisam existir e a categoria tem que ser do mesmo tipo
+// Conta e categoria precisam existir, ser do usuário, e a categoria tem que
+// ser do mesmo tipo
 async function validarContaECategoria(
   tx: Prisma.TransactionClient,
+  usuarioId: number,
   dados: DadosTransacao,
 ) {
-  const conta = await tx.conta.findUnique({ where: { id: dados.contaId } });
+  const conta = await tx.conta.findFirst({
+    where: { id: dados.contaId, usuarioId },
+  });
 
   if (!conta) {
     return { erro: "CONTA NÃO ENCONTRADA" } as const;
   }
 
-  const categoria = await tx.categoria.findUnique({
-    where: { id: dados.categoriaId },
+  const categoria = await tx.categoria.findFirst({
+    where: { id: dados.categoriaId, usuarioId },
   });
 
   if (!categoria) {
@@ -60,10 +64,13 @@ function estaVinculada(transacao: Transacao) {
   );
 }
 
-export async function cadastrarTransacao(dados: DadosTransacao) {
+export async function cadastrarTransacao(
+  usuarioId: number,
+  dados: DadosTransacao,
+) {
   try {
     return await executarTransacao(async (tx) => {
-      const invalido = await validarContaECategoria(tx, dados);
+      const invalido = await validarContaECategoria(tx, usuarioId, dados);
 
       if (invalido) {
         return invalido;
@@ -94,12 +101,12 @@ export async function cadastrarTransacao(dados: DadosTransacao) {
   }
 }
 
-export async function listarTransacoes(filtros: FiltrosTransacao) {
-  const where: {
-    tipo?: TipoTransacao;
-    contaId?: number;
-    categoriaId?: number;
-  } = {};
+export async function listarTransacoes(
+  usuarioId: number,
+  filtros: FiltrosTransacao,
+) {
+  // A transação é do usuário dono da conta
+  const where: Prisma.TransacaoWhereInput = { conta: { usuarioId } };
 
   if (filtros.tipo) {
     where.tipo = filtros.tipo;
@@ -135,9 +142,9 @@ export async function listarTransacoes(filtros: FiltrosTransacao) {
   return { transacao, total, pagina, limite, totalPaginas };
 }
 
-export async function buscarTransacao(id: number) {
-  const transacao = await prisma.transacao.findUnique({
-    where: { id },
+export async function buscarTransacao(usuarioId: number, id: number) {
+  const transacao = await prisma.transacao.findFirst({
+    where: { id, conta: { usuarioId } },
   });
 
   if (!transacao) {
@@ -147,10 +154,16 @@ export async function buscarTransacao(id: number) {
   return { transacao };
 }
 
-export async function atualizarTransacao(dados: DadosTransacao, id: number) {
+export async function atualizarTransacao(
+  usuarioId: number,
+  dados: DadosTransacao,
+  id: number,
+) {
   try {
     return await executarTransacao(async (tx) => {
-      const existe = await tx.transacao.findUnique({ where: { id } });
+      const existe = await tx.transacao.findFirst({
+        where: { id, conta: { usuarioId } },
+      });
 
       if (!existe) {
         return { erro: "TRANSAÇÃO NÃO ENCONTRADA" } as const;
@@ -162,7 +175,7 @@ export async function atualizarTransacao(dados: DadosTransacao, id: number) {
         } as const;
       }
 
-      const invalido = await validarContaECategoria(tx, dados);
+      const invalido = await validarContaECategoria(tx, usuarioId, dados);
 
       if (invalido) {
         return invalido;
@@ -195,10 +208,12 @@ export async function atualizarTransacao(dados: DadosTransacao, id: number) {
   }
 }
 
-export async function deletarTransacao(id: number) {
+export async function deletarTransacao(usuarioId: number, id: number) {
   try {
     return await executarTransacao(async (tx) => {
-      const existe = await tx.transacao.findUnique({ where: { id } });
+      const existe = await tx.transacao.findFirst({
+        where: { id, conta: { usuarioId } },
+      });
 
       if (!existe) {
         return { erro: "TRANSAÇÃO NÃO ENCONTRADA" } as const;
@@ -226,9 +241,9 @@ export async function deletarTransacao(id: number) {
   }
 }
 
-export async function buscarReceitaPorId(id: number) {
+export async function buscarReceitaPorId(usuarioId: number, id: number) {
   const transacao = await prisma.transacao.findFirst({
-    where: { id, tipo: "RECEITA" },
+    where: { id, tipo: "RECEITA", conta: { usuarioId } },
   });
 
   if (!transacao) {
@@ -238,9 +253,9 @@ export async function buscarReceitaPorId(id: number) {
   return { transacao };
 }
 
-export async function buscarDespesaPorId(id: number) {
+export async function buscarDespesaPorId(usuarioId: number, id: number) {
   const transacao = await prisma.transacao.findFirst({
-    where: { id, tipo: "DESPESA" },
+    where: { id, tipo: "DESPESA", conta: { usuarioId } },
   });
 
   if (!transacao) {
@@ -250,10 +265,30 @@ export async function buscarDespesaPorId(id: number) {
   return { transacao };
 }
 
-export async function listarReceita(contaId: number, pagina = 1, limite = 10) {
-  return listarTransacoes({ tipo: "RECEITA", contaId, pagina, limite });
+export async function listarReceita(
+  usuarioId: number,
+  contaId: number,
+  pagina = 1,
+  limite = 10,
+) {
+  return listarTransacoes(usuarioId, {
+    tipo: "RECEITA",
+    contaId,
+    pagina,
+    limite,
+  });
 }
 
-export async function listarDespesa(contaId: number, pagina = 1, limite = 10) {
-  return listarTransacoes({ tipo: "DESPESA", contaId, pagina, limite });
+export async function listarDespesa(
+  usuarioId: number,
+  contaId: number,
+  pagina = 1,
+  limite = 10,
+) {
+  return listarTransacoes(usuarioId, {
+    tipo: "DESPESA",
+    contaId,
+    pagina,
+    limite,
+  });
 }

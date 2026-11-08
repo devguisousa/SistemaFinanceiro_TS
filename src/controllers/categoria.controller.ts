@@ -23,7 +23,7 @@ export async function cadastrar(req: Request, res: Response) {
     return;
   }
 
-  const categoria = await cadastrarCategoria(resultado.data);
+  const categoria = await cadastrarCategoria(req.usuario!.id, resultado.data);
 
   if ("erro" in categoria) {
     res.status(409).json({ erro: categoria.erro });
@@ -48,6 +48,7 @@ export async function listar(req: Request, res: Response) {
   const limite = resultado.data.limit ?? 10;
 
   const categorias = await listarCategoria(
+    req.usuario!.id,
     pagina,
     limite,
     resultado.data.tipo,
@@ -67,7 +68,7 @@ export async function buscar(req: Request, res: Response) {
     return;
   }
 
-  const categoria = await buscarCategoria(resultado.data);
+  const categoria = await buscarCategoria(req.usuario!.id, resultado.data);
 
   if ("erro" in categoria) {
     res.status(404).json({ erro: categoria.erro });
@@ -98,7 +99,11 @@ export async function atualizar(req: Request, res: Response) {
     return;
   }
 
-  const categoria = await atualizarCategoria(resultadoId.data, resultado.data);
+  const categoria = await atualizarCategoria(
+    req.usuario!.id,
+    resultadoId.data,
+    resultado.data,
+  );
 
   if ("erro" in categoria) {
     const status = categoria.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409;
@@ -120,7 +125,7 @@ export async function deletar(req: Request, res: Response) {
     return;
   }
 
-  const deletado = await deletarCategoria(resultado.data);
+  const deletado = await deletarCategoria(req.usuario!.id, resultado.data);
 
   if ("erro" in deletado) {
     const status = deletado.erro === "CATEGORIA NÃO ENCONTRADA" ? 404 : 409;
